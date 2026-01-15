@@ -1,0 +1,7 @@
+﻿components/AuditPanel.tsx(384,83): error TS2339: Property 'stake' does not exist on type 'unknown'.
+components/AuditPanel.tsx(384,96): error TS2339: Property 'stake' does not exist on type 'unknown'.
+components/AuditPanel.tsx(385,73): error TS2339: Property 'stake' does not exist on type 'unknown'.
+components/AuditPanel.tsx(391,59): error TS2339: Property 'stake' does not exist on type 'unknown'.
+components/AuditPanel.tsx(442,60): error TS2339: Property 'profit' does not exist on type 'unknown'.
+components/AuditPanel.tsx(442,81): error TS2339: Property 'stake' does not exist on type 'unknown'.
+components/AuditPanel.tsx(442,101): error TS2339: Property 'count' does not exist on type 'unknown'.
