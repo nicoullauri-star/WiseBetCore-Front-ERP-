@@ -10,8 +10,9 @@ import {
   CheckSquare, Square, AlertTriangle, Info, ArrowRight,
   RefreshCw, DollarSign, Wallet, ArrowDownCircle, ArrowUpCircle,
   Copy, UserRound, Briefcase, Sliders, Sparkles, Mail, Verified,
-  Store, Building2, Terminal, Clock
+  Store, Building2, Terminal, Clock, Loader2
 } from 'lucide-react';
+import { useDistribuidoras } from '../hooks';
 
 // --- INTEGRATION INTERFACE ---
 const copyToClipboard = (text: string) => {
@@ -99,14 +100,15 @@ const MOCK_AGENCIES: Record<string, Agency> = {
   'AG-GYE-02': { id: 'AG-GYE-02', name: 'Agencia Guayaquil Puerto', owner: 'Santiago Muñoz', rake: 30, totalGGR: 8400 },
 };
 
-const ECOSISTEMAS = [
+// --- MOCK DATA FOR FALLBACK ---
+const FALLBACK_ECOSISTEMAS = [
   { id: 'ALTENAR', name: 'ALTENAR (Ecuador)', houses: ['OKIBET', 'ECUABET', 'DATABET'] },
   { id: '1XGROUP', name: '1X GROUP', houses: ['1XBET', 'MELBET', 'BETWINNER'] },
   { id: 'VICTORY', name: 'VICTORY / SHARK', houses: ['VICTORY365', 'SHARKBET'] }
 ];
 
 const INITIAL_PROFILES: Profile[] = Array.from({ length: 45 }).map((_, i) => {
-  const eco = ECOSISTEMAS[i % ECOSISTEMAS.length];
+  const eco = FALLBACK_ECOSISTEMAS[i % FALLBACK_ECOSISTEMAS.length];
   const house = eco.houses[i % eco.houses.length];
   const isEcuador = eco.id === 'ALTENAR';
   const agencyId = isEcuador ? (i % 2 === 0 ? 'AG-UIO-01' : 'AG-GYE-02') : undefined;
@@ -146,11 +148,17 @@ const INITIAL_PROFILES: Profile[] = Array.from({ length: 45 }).map((_, i) => {
 });
 
 const OperationalCenter: React.FC = () => {
+  // --- API DATA ---
+  const { ecosistemas: apiEcosistemas, isLoading: isLoadingEcosistemas, error: ecosistemasError } = useDistribuidoras();
+
+  // Use API data or fallback to mock
+  const ECOSISTEMAS = apiEcosistemas.length > 0 ? apiEcosistemas : FALLBACK_ECOSISTEMAS;
+
   // --- STATE ---
   const [profiles, setProfiles] = useState<Profile[]>(INITIAL_PROFILES);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
-  const [expandedEcos, setExpandedEcos] = useState<string[]>(['ALTENAR']);
+  const [expandedEcos, setExpandedEcos] = useState<string[]>([]);
   const [expandedHouses, setExpandedHouses] = useState<string[]>([]);
   const [plannerView, setPlannerView] = useState<'Semana' | 'Mes'>('Semana');
   const [drawerTab, setDrawerTab] = useState<'resumen' | 'dna' | 'finanzas'>('resumen');
