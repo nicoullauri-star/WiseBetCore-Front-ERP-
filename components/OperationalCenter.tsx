@@ -13,6 +13,8 @@ import {
   Store, Building2, Terminal, Clock, Loader2
 } from 'lucide-react';
 import { useDistribuidoras } from '../hooks';
+import { apiClient } from '../services/api.client';
+import type { NavigationMenuItem } from '../types/navigation.types';
 
 // --- INTEGRATION INTERFACE ---
 const copyToClipboard = (text: string) => {
@@ -165,6 +167,9 @@ const OperationalCenter: React.FC = () => {
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isAuditing, setIsAuditing] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(false);
+  const [showExplorer, setShowExplorer] = useState(false);
+  const [showPlanner, setShowPlanner] = useState(false);
 
   // Operational Config (Las reglas)
   const [opConfig, setOpConfig] = useState<OpConfig>({
@@ -179,6 +184,43 @@ const OperationalCenter: React.FC = () => {
   const [sportFilter, setSportFilter] = useState<'TODOS' | Sport>('TODOS');
   const [stakeFilter, setStakeFilter] = useState<'TODOS' | number>('TODOS');
   const [statusFilter, setStatusFilter] = useState<ViewStatus>('TODOS');
+
+  // Load navigation sections from API to control visibility
+  useEffect(() => {
+    const loadSectionVisibility = async () => {
+      try {
+        const data = await apiClient.getNavigation();
+
+        // Find the "Centro Operativo" menu item
+        const operationalCenterMenu = data.navigation.find(
+          (item: NavigationMenuItem) => item.code === 'ops_center'
+        );
+
+        if (operationalCenterMenu && operationalCenterMenu.sections) {
+          // Map sections to visibility states
+          const sections = operationalCenterMenu.sections;
+
+          // Set visibility based on sections returned from API
+          setShowAlerts(sections.some(s => s.code === 'co-alertas'));
+          setShowExplorer(sections.some(s => s.code === 'co-explorer'));
+          setShowPlanner(sections.some(s => s.code === 'co-planner'));
+        } else {
+          // If no sections found, hide all by default
+          setShowAlerts(false);
+          setShowExplorer(false);
+          setShowPlanner(false);
+        }
+      } catch (error) {
+        console.error('Error loading section visibility:', error);
+        // On error, show all sections as fallback
+        setShowAlerts(true);
+        setShowExplorer(true);
+        setShowPlanner(true);
+      }
+    };
+
+    loadSectionVisibility();
+  }, []);
 
   // Time context
   const now = new Date();
@@ -340,274 +382,280 @@ const OperationalCenter: React.FC = () => {
 
 
         {/* CENTRO DE ALERTAS TÁCTICAS (FUNCIONAL) */}
-        <section className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-3xl overflow-hidden shadow-2xl">
-          <div className="px-6 py-4 border-b border-[#1f1f1f] bg-white/[0.02] flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="size-2 rounded-full bg-rose-500 animate-pulse"></div>
-              <h2 className="text-xs font-black text-white uppercase tracking-[0.2em]">Centro de Alertas de Flota</h2>
-            </div>
-            <div className="flex gap-2">
-              {['TODAS', 'CRITICAL', 'RISK', 'EXECUTION'].map(cat => (
-                <button key={cat} className={`px-3 py-1 text-[9px] font-black rounded-lg transition-all ${cat === 'TODAS' ? 'bg-[#1a1a1a] text-white border border-[#333]' : 'text-[#666] hover:text-white'}`}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col">
-            {operationalAlerts.length === 0 ? (
-              <div className="p-10 text-center text-[#444] text-xs font-bold uppercase italic">No se detectan discrepancias en la red.</div>
-            ) : operationalAlerts.map((alertItem) => {
-              const isExpanded = expandedAlertId === alertItem.id;
-              const severityColors: any = {
-                Critical: 'text-rose-500 bg-rose-500/10 border-rose-500/20',
-                Risk: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
-                Execution: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-                Info: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
-              };
-
-              return (
-                <div key={alertItem.id} className="border-b border-[#1f1f1f] last:border-0">
-                  <div
-                    onClick={() => setExpandedAlertId(isExpanded ? null : alertItem.id)}
-                    className={`px-6 py-5 flex items-start gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors ${isExpanded ? 'bg-white/[0.03]' : ''}`}
-                  >
-                    <div className={`p-2.5 rounded-xl border flex-shrink-0 ${severityColors[alertItem.severity]}`}>
-                      {alertItem.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center mb-1">
-                        <p className={`text-xs font-bold ${alertItem.severity === 'Critical' ? 'text-white' : 'text-slate-300'}`}>
-                          {alertItem.title}
-                        </p>
-                        <span className="text-[10px] text-[#444] font-bold">{alertItem.time}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-2 py-0.5 bg-[#111] border border-[#1f1f1f] rounded text-[9px] font-black text-[#666] uppercase">{alertItem.impact}</span>
-                        <span className={`text-[9px] font-black uppercase ${alertItem.severity === 'Critical' ? 'text-rose-500' : 'text-[#666]'}`}>{alertItem.severity}</span>
-                      </div>
-                    </div>
-                    <ChevronDown size={16} className={`text-[#333] mt-1 transition-transform ${isExpanded ? 'rotate-180 text-white' : ''}`} />
-                  </div>
-
-                  {isExpanded && (
-                    <div className="px-16 pb-6 pt-0 animate-in slide-in-from-top-1 duration-200">
-                      <div className="bg-[#050505] border border-[#1f1f1f] rounded-2xl p-6 space-y-5">
-                        <div>
-                          <h4 className="text-[10px] font-black text-white uppercase mb-1.5 tracking-widest">Causa Operativa:</h4>
-                          <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{alertItem.cause}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-[10px] font-black text-white uppercase mb-1.5 tracking-widest">Acción Recomendada:</h4>
-                          <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{alertItem.action}</p>
-                        </div>
-                        <div className="flex justify-end pt-2">
-                          <button onClick={() => alert(`Ejecutando acción para ${alertItem.targetId}`)} className="px-6 py-2.5 bg-[#00ff88] text-black text-[10px] font-black uppercase rounded-lg hover:bg-[#00e67a] transition-all shadow-lg shadow-[#00ff88]/10">
-                            Resolver Incidencia
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* EXPLORADOR DE ECOSISTEMAS (CON FILTRO DE STAKE) */}
-        <section className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-3xl shadow-xl overflow-hidden">
-          <div className="px-8 py-6 border-b border-[#1f1f1f] flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <Globe size={22} className="text-[#00ff88]" />
-              <h2 className="text-sm font-black text-white uppercase tracking-widest">Explorador de Flota</h2>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 bg-[#111] p-2 rounded-2xl border border-[#1f1f1f]">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#666666]" size={14} />
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar ID o Dueño..." className="bg-[#050505] border border-[#1f1f1f] rounded-xl py-2 pl-10 pr-4 text-[10px] outline-none focus:border-[#00ff88] w-48 text-white font-bold" />
+        {showAlerts && (
+          <section className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-3xl overflow-hidden shadow-2xl" id="co-alertas">
+            <div className="px-6 py-4 border-b border-[#1f1f1f] bg-white/[0.02] flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="size-2 rounded-full bg-rose-500 animate-pulse"></div>
+                <h2 className="text-xs font-black text-white uppercase tracking-[0.2em]">Centro de Alertas de Flota</h2>
               </div>
-              <FilterDropdown label="Deporte DNA" value={sportFilter} onChange={setSportFilter} options={['TODOS', 'Fútbol', 'Tenis', 'Basket']} />
-              <FilterDropdown label="Filtrar Stake" value={stakeFilter} onChange={setStakeFilter} options={['TODOS', 50, 100, 300, 500]} />
-              <div className="flex gap-1 ml-2">
-                {(['TODOS', 'HOY', 'DESCANSO'] as ViewStatus[]).map(s => (
-                  <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${statusFilter === s ? 'bg-[#00ff88] text-black shadow-lg shadow-[#00ff88]/20' : 'text-[#666666] hover:text-white'}`}>
-                    {s}
+              <div className="flex gap-2">
+                {['TODAS', 'CRITICAL', 'RISK', 'EXECUTION'].map(cat => (
+                  <button key={cat} className={`px-3 py-1 text-[9px] font-black rounded-lg transition-all ${cat === 'TODAS' ? 'bg-[#1a1a1a] text-white border border-[#333]' : 'text-[#666] hover:text-white'}`}>
+                    {cat}
                   </button>
                 ))}
               </div>
             </div>
-          </div>
 
-          <div className="p-6 space-y-4">
-            {ECOSISTEMAS.map(eco => {
-              const ecoProfiles = filteredProfiles.filter(p => p.ecosystem === eco.id);
-              if (ecoProfiles.length === 0 && search) return null;
-              const isExpanded = expandedEcos.includes(eco.id);
+            <div className="flex flex-col">
+              {operationalAlerts.length === 0 ? (
+                <div className="p-10 text-center text-[#444] text-xs font-bold uppercase italic">No se detectan discrepancias en la red.</div>
+              ) : operationalAlerts.map((alertItem) => {
+                const isExpanded = expandedAlertId === alertItem.id;
+                const severityColors: any = {
+                  Critical: 'text-rose-500 bg-rose-500/10 border-rose-500/20',
+                  Risk: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+                  Execution: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+                  Info: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                };
 
-              return (
-                <div key={eco.id} className="border border-[#1f1f1f] rounded-3xl overflow-hidden bg-[#050505]/30">
-                  <div onClick={() => toggleEco(eco.id)} className="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2.5 rounded-xl ${isExpanded ? 'bg-[#00ff88] text-black shadow-lg' : 'bg-[#00ff88]/10 text-[#00ff88]'}`}>
-                        <Layers size={22} />
+                return (
+                  <div key={alertItem.id} className="border-b border-[#1f1f1f] last:border-0">
+                    <div
+                      onClick={() => setExpandedAlertId(isExpanded ? null : alertItem.id)}
+                      className={`px-6 py-5 flex items-start gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors ${isExpanded ? 'bg-white/[0.03]' : ''}`}
+                    >
+                      <div className={`p-2.5 rounded-xl border flex-shrink-0 ${severityColors[alertItem.severity]}`}>
+                        {alertItem.icon}
                       </div>
-                      <h3 className="text-sm font-black text-white uppercase tracking-tight">{eco.name}</h3>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className={`text-xs font-bold ${alertItem.severity === 'Critical' ? 'text-white' : 'text-slate-300'}`}>
+                            {alertItem.title}
+                          </p>
+                          <span className="text-[10px] text-[#444] font-bold">{alertItem.time}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="px-2 py-0.5 bg-[#111] border border-[#1f1f1f] rounded text-[9px] font-black text-[#666] uppercase">{alertItem.impact}</span>
+                          <span className={`text-[9px] font-black uppercase ${alertItem.severity === 'Critical' ? 'text-rose-500' : 'text-[#666]'}`}>{alertItem.severity}</span>
+                        </div>
+                      </div>
+                      <ChevronDown size={16} className={`text-[#333] mt-1 transition-transform ${isExpanded ? 'rotate-180 text-white' : ''}`} />
                     </div>
-                    <ChevronDown size={22} className={`text-[#666666] transition-transform ${isExpanded ? 'rotate-180 text-[#00ff88]' : ''}`} />
-                  </div>
 
-                  {isExpanded && (
-                    <div className="p-4 bg-[#0d0d0d] space-y-4 animate-in slide-in-from-top-2">
-                      {eco.houses.map(house => {
-                        const houseProfiles = ecoProfiles.filter(p => p.bookie === house);
-                        const hKey = `${eco.id}_${house}`;
-                        const houseIsExpanded = expandedHouses.includes(hKey);
-                        if (houseProfiles.length === 0 && search) return null;
-
-                        const totalBal = houseProfiles.reduce((acc, p) => acc + p.balance, 0);
-                        const activeBal = houseProfiles.filter(p => p.schedule[todayIdx] === 'A').reduce((acc, p) => acc + p.balance, 0);
-
-                        return (
-                          <div key={house} className="border border-white/5 rounded-2xl overflow-hidden">
-                            <div onClick={() => toggleHouse(hKey)} className="px-5 py-4 bg-[#111] flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-[#151515]">
-                              <div className="flex items-center gap-4">
-                                <Shield size={16} className="text-[#00ff88]" />
-                                <div>
-                                  <span className="text-sm font-black text-white uppercase tracking-widest">{house}</span>
-                                  <p className="text-[9px] text-[#666666] font-bold">Total: {houseProfiles.length} perfiles</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-8">
-                                <div className="text-right">
-                                  <p className="text-[8px] text-[#666666] font-black uppercase">Capital Activo Hoy</p>
-                                  <p className="text-xs font-black text-[#00ff88]">${activeBal.toLocaleString()}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[8px] text-[#666666] font-black uppercase">Capital Total</p>
-                                  <p className="text-xs font-black text-white">${totalBal.toLocaleString()}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <ChevronDown size={18} className={`text-[#666666] transition-transform ${houseIsExpanded ? 'rotate-180' : ''}`} />
-                                </div>
-                              </div>
-                            </div>
-
-                            {houseIsExpanded && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-[#080808] animate-in zoom-in-95">
-                                {houseProfiles.map(p => {
-                                  const isA = p.schedule[todayIdx] === 'A';
-                                  const hasAgency = !!p.agencyId;
-                                  return (
-                                    <div key={p.id} onClick={() => setSelectedProfileId(p.id)} className={`p-4 bg-[#0d0d0d] border rounded-2xl flex items-center justify-between hover:border-[#00ff88] transition-all group cursor-pointer ${isA ? 'border-[#00ff88]/30 shadow-lg shadow-[#00ff88]/5' : 'border-white/5 opacity-60'} ${hasAgency ? 'ring-1 ring-primary/20' : ''}`}>
-                                      <div className="flex items-center gap-3">
-                                        <div className={`size-10 rounded-xl flex items-center justify-center font-black text-[11px] ${isA ? 'bg-[#00ff88]/20 text-[#00ff88]' : 'bg-[#121212] text-slate-500'}`}>
-                                          {p.id.split('_').pop()}
-                                        </div>
-                                        <div>
-                                          <div className="flex items-center gap-2">
-                                            <p className={`text-[12px] font-black group-hover:text-[#00ff88] transition-colors ${isA ? 'text-white' : 'text-slate-500'}`}>{p.id}</p>
-                                            {hasAgency && (
-                                              <PortalTooltip text="Perfil gestionado por Agencia">
-                                                <div className="p-1 bg-primary/20 rounded border border-primary/20"><Building2 size={8} className="text-primary" /></div>
-                                              </PortalTooltip>
-                                            )}
-                                          </div>
-                                          <p className="text-[9px] text-[#666666] font-bold uppercase tracking-widest">{p.owner.split(' ')[0]} • {p.sport}</p>
-                                        </div>
-                                      </div>
-                                      <div className="text-right">
-                                        <p className={`text-[11px] font-mono font-black ${isA ? 'text-white' : 'text-slate-500'}`}>${p.balance.toLocaleString()}</p>
-                                        <p className={`text-[8px] font-black uppercase ${isA ? 'text-[#00ff88]' : 'text-slate-600'}`}>{isA ? 'Activo' : 'Descanso'}</p>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                    {isExpanded && (
+                      <div className="px-16 pb-6 pt-0 animate-in slide-in-from-top-1 duration-200">
+                        <div className="bg-[#050505] border border-[#1f1f1f] rounded-2xl p-6 space-y-5">
+                          <div>
+                            <h4 className="text-[10px] font-black text-white uppercase mb-1.5 tracking-widest">Causa Operativa:</h4>
+                            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{alertItem.cause}</p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                          <div>
+                            <h4 className="text-[10px] font-black text-white uppercase mb-1.5 tracking-widest">Acción Recomendada:</h4>
+                            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{alertItem.action}</p>
+                          </div>
+                          <div className="flex justify-end pt-2">
+                            <button onClick={() => alert(`Ejecutando acción para ${alertItem.targetId}`)} className="px-6 py-2.5 bg-[#00ff88] text-black text-[10px] font-black uppercase rounded-lg hover:bg-[#00e67a] transition-all shadow-lg shadow-[#00ff88]/10">
+                              Resolver Incidencia
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* EXPLORADOR DE ECOSISTEMAS (CON FILTRO DE STAKE) */}
+        {showExplorer && (
+          <section className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-3xl shadow-xl overflow-hidden" id="co-explorer">
+            <div className="px-8 py-6 border-b border-[#1f1f1f] flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+              <div className="flex items-center gap-3">
+                <Globe size={22} className="text-[#00ff88]" />
+                <h2 className="text-sm font-black text-white uppercase tracking-widest">Explorador de Flota</h2>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 bg-[#111] p-2 rounded-2xl border border-[#1f1f1f]">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#666666]" size={14} />
+                  <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar ID o Dueño..." className="bg-[#050505] border border-[#1f1f1f] rounded-xl py-2 pl-10 pr-4 text-[10px] outline-none focus:border-[#00ff88] w-48 text-white font-bold" />
                 </div>
-              );
-            })}
-          </div>
-        </section>
+                <FilterDropdown label="Deporte DNA" value={sportFilter} onChange={setSportFilter} options={['TODOS', 'Fútbol', 'Tenis', 'Basket']} />
+                <FilterDropdown label="Filtrar Stake" value={stakeFilter} onChange={setStakeFilter} options={['TODOS', 50, 100, 300, 500]} />
+                <div className="flex gap-1 ml-2">
+                  {(['TODOS', 'HOY', 'DESCANSO'] as ViewStatus[]).map(s => (
+                    <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${statusFilter === s ? 'bg-[#00ff88] text-black shadow-lg shadow-[#00ff88]/20' : 'text-[#666666] hover:text-white'}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {ECOSISTEMAS.map(eco => {
+                const ecoProfiles = filteredProfiles.filter(p => p.ecosystem === eco.id);
+                if (ecoProfiles.length === 0 && search) return null;
+                const isExpanded = expandedEcos.includes(eco.id);
+
+                return (
+                  <div key={eco.id} className="border border-[#1f1f1f] rounded-3xl overflow-hidden bg-[#050505]/30">
+                    <div onClick={() => toggleEco(eco.id)} className="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2.5 rounded-xl ${isExpanded ? 'bg-[#00ff88] text-black shadow-lg' : 'bg-[#00ff88]/10 text-[#00ff88]'}`}>
+                          <Layers size={22} />
+                        </div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-tight">{eco.name}</h3>
+                      </div>
+                      <ChevronDown size={22} className={`text-[#666666] transition-transform ${isExpanded ? 'rotate-180 text-[#00ff88]' : ''}`} />
+                    </div>
+
+                    {isExpanded && (
+                      <div className="p-4 bg-[#0d0d0d] space-y-4 animate-in slide-in-from-top-2">
+                        {eco.houses.map(house => {
+                          const houseProfiles = ecoProfiles.filter(p => p.bookie === house);
+                          const hKey = `${eco.id}_${house}`;
+                          const houseIsExpanded = expandedHouses.includes(hKey);
+                          if (houseProfiles.length === 0 && search) return null;
+
+                          const totalBal = houseProfiles.reduce((acc, p) => acc + p.balance, 0);
+                          const activeBal = houseProfiles.filter(p => p.schedule[todayIdx] === 'A').reduce((acc, p) => acc + p.balance, 0);
+
+                          return (
+                            <div key={house} className="border border-white/5 rounded-2xl overflow-hidden">
+                              <div onClick={() => toggleHouse(hKey)} className="px-5 py-4 bg-[#111] flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-[#151515]">
+                                <div className="flex items-center gap-4">
+                                  <Shield size={16} className="text-[#00ff88]" />
+                                  <div>
+                                    <span className="text-sm font-black text-white uppercase tracking-widest">{house}</span>
+                                    <p className="text-[9px] text-[#666666] font-bold">Total: {houseProfiles.length} perfiles</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-8">
+                                  <div className="text-right">
+                                    <p className="text-[8px] text-[#666666] font-black uppercase">Capital Activo Hoy</p>
+                                    <p className="text-xs font-black text-[#00ff88]">${activeBal.toLocaleString()}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-[8px] text-[#666666] font-black uppercase">Capital Total</p>
+                                    <p className="text-xs font-black text-white">${totalBal.toLocaleString()}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ChevronDown size={18} className={`text-[#666666] transition-transform ${houseIsExpanded ? 'rotate-180' : ''}`} />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {houseIsExpanded && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-[#080808] animate-in zoom-in-95">
+                                  {houseProfiles.map(p => {
+                                    const isA = p.schedule[todayIdx] === 'A';
+                                    const hasAgency = !!p.agencyId;
+                                    return (
+                                      <div key={p.id} onClick={() => setSelectedProfileId(p.id)} className={`p-4 bg-[#0d0d0d] border rounded-2xl flex items-center justify-between hover:border-[#00ff88] transition-all group cursor-pointer ${isA ? 'border-[#00ff88]/30 shadow-lg shadow-[#00ff88]/5' : 'border-white/5 opacity-60'} ${hasAgency ? 'ring-1 ring-primary/20' : ''}`}>
+                                        <div className="flex items-center gap-3">
+                                          <div className={`size-10 rounded-xl flex items-center justify-center font-black text-[11px] ${isA ? 'bg-[#00ff88]/20 text-[#00ff88]' : 'bg-[#121212] text-slate-500'}`}>
+                                            {p.id.split('_').pop()}
+                                          </div>
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <p className={`text-[12px] font-black group-hover:text-[#00ff88] transition-colors ${isA ? 'text-white' : 'text-slate-500'}`}>{p.id}</p>
+                                              {hasAgency && (
+                                                <PortalTooltip text="Perfil gestionado por Agencia">
+                                                  <div className="p-1 bg-primary/20 rounded border border-primary/20"><Building2 size={8} className="text-primary" /></div>
+                                                </PortalTooltip>
+                                              )}
+                                            </div>
+                                            <p className="text-[9px] text-[#666666] font-bold uppercase tracking-widest">{p.owner.split(' ')[0]} • {p.sport}</p>
+                                          </div>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className={`text-[11px] font-mono font-black ${isA ? 'text-white' : 'text-slate-500'}`}>${p.balance.toLocaleString()}</p>
+                                          <p className={`text-[8px] font-black uppercase ${isA ? 'text-[#00ff88]' : 'text-slate-600'}`}>{isA ? 'Activo' : 'Descanso'}</p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* PLANIFICADOR CON RESALTADO DE HOY (FUNCIONAL) */}
-        <section className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-xl sm:rounded-2xl lg:rounded-[2.5rem] shadow-xl overflow-hidden mb-20">
-          <div className="p-3 sm:p-5 lg:p-8 border-b border-[#1f1f1f] bg-gradient-to-r from-[#111] to-[#0d0d0d] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Calendar size={18} className="text-[#00ff88] sm:w-6 sm:h-6" />
-              <div>
-                <h2 className="text-[11px] sm:text-sm font-black text-white uppercase tracking-wider sm:tracking-widest">Planificador Táctico de Rotación</h2>
-                <p className="text-[8px] sm:text-[10px] text-[#666666] font-bold uppercase mt-0.5 sm:mt-1 tracking-tight sm:tracking-tighter">Mes: {currentMonth.toUpperCase()} • DÍA {todayIdx + 1}</p>
-              </div>
-            </div>
-            <div className="flex bg-[#050505] p-1 sm:p-1.5 rounded-lg sm:rounded-xl border border-[#1f1f1f]">
-              <button onClick={() => setPlannerView('Semana')} className={`px-3 sm:px-5 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase rounded-md sm:rounded-lg transition-all ${plannerView === 'Semana' ? 'bg-[#00ff88] text-black shadow-lg shadow-[#00ff88]/20' : 'text-[#666666]'}`}>Semana</button>
-              <button onClick={() => setPlannerView('Mes')} className={`px-3 sm:px-5 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase rounded-md sm:rounded-lg transition-all ${plannerView === 'Mes' ? 'bg-[#00ff88] text-black shadow-lg shadow-[#00ff88]/20' : 'text-[#666666]'}`}>Mes</button>
-            </div>
-          </div>
-
-          <div className="p-3 sm:p-5 lg:p-6 overflow-x-auto no-scrollbar">
-            <div className="min-w-[600px] space-y-2 sm:space-y-3 lg:space-y-4">
-              <div className="flex items-center gap-2 sm:gap-3 px-1 sm:px-2">
-                <div className="w-32 sm:w-40 lg:w-44 shrink-0"></div>
-                <div className="flex-1 flex gap-1 sm:gap-1.5">
-                  {Array.from({ length: plannerView === 'Semana' ? 7 : daysInMonth }).map((_, i) => {
-                    const isToday = plannerView === 'Semana' ? i === currentDayOfWeek : i === todayIdx;
-                    return (
-                      <div key={i} className={`flex-1 text-center py-2 sm:py-3 lg:py-4 rounded-lg sm:rounded-xl lg:rounded-2xl border transition-all ${isToday ? 'border-[#00ff88] bg-[#00ff88]/10 shadow-[0_0_15px_rgba(0,255,136,0.1)] ring-1 ring-[#00ff88]/50' : 'border-transparent'}`}>
-                        <p className={`text-[8px] sm:text-[9px] lg:text-[10px] font-black uppercase ${isToday ? 'text-[#00ff88]' : 'text-[#444]'}`}>
-                          {plannerView === 'Semana' ? ['L', 'M', 'X', 'J', 'V', 'S', 'D'][i] : (i + 1)}
-                        </p>
-                        {isToday && (
-                          <div className="flex flex-col items-center mt-1 sm:mt-2">
-                            <div className="size-1 sm:size-1.5 bg-[#00ff88] rounded-full animate-pulse shadow-[0_0_6px_rgba(0,255,136,0.8)]"></div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+        {showPlanner && (
+          <section className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-xl sm:rounded-2xl lg:rounded-[2.5rem] shadow-xl overflow-hidden mb-20" id="co-planner">
+            <div className="p-3 sm:p-5 lg:p-8 border-b border-[#1f1f1f] bg-gradient-to-r from-[#111] to-[#0d0d0d] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Calendar size={18} className="text-[#00ff88] sm:w-6 sm:h-6" />
+                <div>
+                  <h2 className="text-[11px] sm:text-sm font-black text-white uppercase tracking-wider sm:tracking-widest">Planificador Táctico de Rotación</h2>
+                  <p className="text-[8px] sm:text-[10px] text-[#666666] font-bold uppercase mt-0.5 sm:mt-1 tracking-tight sm:tracking-tighter">Mes: {currentMonth.toUpperCase()} • DÍA {todayIdx + 1}</p>
                 </div>
               </div>
+              <div className="flex bg-[#050505] p-1 sm:p-1.5 rounded-lg sm:rounded-xl border border-[#1f1f1f]">
+                <button onClick={() => setPlannerView('Semana')} className={`px-3 sm:px-5 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase rounded-md sm:rounded-lg transition-all ${plannerView === 'Semana' ? 'bg-[#00ff88] text-black shadow-lg shadow-[#00ff88]/20' : 'text-[#666666]'}`}>Semana</button>
+                <button onClick={() => setPlannerView('Mes')} className={`px-3 sm:px-5 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase rounded-md sm:rounded-lg transition-all ${plannerView === 'Mes' ? 'bg-[#00ff88] text-black shadow-lg shadow-[#00ff88]/20' : 'text-[#666666]'}`}>Mes</button>
+              </div>
+            </div>
 
-              {profiles.slice(0, 15).map(p => (
-                <div key={p.id} className="flex items-center gap-2 sm:gap-3 group">
-                  <div onClick={() => setSelectedProfileId(p.id)} className="w-32 sm:w-40 lg:w-44 shrink-0 cursor-pointer p-2 sm:p-2.5 lg:p-3 bg-[#050505] border border-transparent hover:border-[#1f1f1f] rounded-lg sm:rounded-xl transition-all flex items-center justify-between pr-2 sm:pr-3">
-                    <div>
-                      <p className="text-[10px] sm:text-[11px] font-black text-white group-hover:text-[#00ff88] truncate">{p.id}</p>
-                      <p className="text-[7px] sm:text-[8px] text-[#666666] font-bold uppercase tracking-wider mt-0.5">{p.owner.split(' ')[0]}</p>
-                    </div>
-                    {p.agencyId && <Building2 size={10} className="text-primary/30" />}
-                  </div>
+            <div className="p-3 sm:p-5 lg:p-6 overflow-x-auto no-scrollbar">
+              <div className="min-w-[600px] space-y-2 sm:space-y-3 lg:space-y-4">
+                <div className="flex items-center gap-2 sm:gap-3 px-1 sm:px-2">
+                  <div className="w-32 sm:w-40 lg:w-44 shrink-0"></div>
                   <div className="flex-1 flex gap-1 sm:gap-1.5">
                     {Array.from({ length: plannerView === 'Semana' ? 7 : daysInMonth }).map((_, i) => {
-                      const status = p.schedule[i];
                       const isToday = plannerView === 'Semana' ? i === currentDayOfWeek : i === todayIdx;
                       return (
-                        <div
-                          key={i}
-                          onClick={() => toggleDayStatus(p.id, i)}
-                          className={`flex-1 h-7 sm:h-8 lg:h-10 rounded-md sm:rounded-lg border flex items-center justify-center text-[9px] sm:text-[10px] font-black cursor-pointer transition-all hover:scale-105 active:scale-90 ${isToday ? 'ring-1 sm:ring-2 ring-[#00ff88] ring-offset-2 sm:ring-offset-3 ring-offset-[#0d0d0d]' : ''
-                            } ${status === 'A' ? 'bg-[#00ff88]/10 border-[#00ff88]/30 text-[#00ff88]' : 'bg-[#121212] border-white/5 text-[#444]'
-                            }`}
-                        >
-                          {status}
+                        <div key={i} className={`flex-1 text-center py-2 sm:py-3 lg:py-4 rounded-lg sm:rounded-xl lg:rounded-2xl border transition-all ${isToday ? 'border-[#00ff88] bg-[#00ff88]/10 shadow-[0_0_15px_rgba(0,255,136,0.1)] ring-1 ring-[#00ff88]/50' : 'border-transparent'}`}>
+                          <p className={`text-[8px] sm:text-[9px] lg:text-[10px] font-black uppercase ${isToday ? 'text-[#00ff88]' : 'text-[#444]'}`}>
+                            {plannerView === 'Semana' ? ['L', 'M', 'X', 'J', 'V', 'S', 'D'][i] : (i + 1)}
+                          </p>
+                          {isToday && (
+                            <div className="flex flex-col items-center mt-1 sm:mt-2">
+                              <div className="size-1 sm:size-1.5 bg-[#00ff88] rounded-full animate-pulse shadow-[0_0_6px_rgba(0,255,136,0.8)]"></div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              ))}
+
+                {profiles.slice(0, 15).map(p => (
+                  <div key={p.id} className="flex items-center gap-2 sm:gap-3 group">
+                    <div onClick={() => setSelectedProfileId(p.id)} className="w-32 sm:w-40 lg:w-44 shrink-0 cursor-pointer p-2 sm:p-2.5 lg:p-3 bg-[#050505] border border-transparent hover:border-[#1f1f1f] rounded-lg sm:rounded-xl transition-all flex items-center justify-between pr-2 sm:pr-3">
+                      <div>
+                        <p className="text-[10px] sm:text-[11px] font-black text-white group-hover:text-[#00ff88] truncate">{p.id}</p>
+                        <p className="text-[7px] sm:text-[8px] text-[#666666] font-bold uppercase tracking-wider mt-0.5">{p.owner.split(' ')[0]}</p>
+                      </div>
+                      {p.agencyId && <Building2 size={10} className="text-primary/30" />}
+                    </div>
+                    <div className="flex-1 flex gap-1 sm:gap-1.5">
+                      {Array.from({ length: plannerView === 'Semana' ? 7 : daysInMonth }).map((_, i) => {
+                        const status = p.schedule[i];
+                        const isToday = plannerView === 'Semana' ? i === currentDayOfWeek : i === todayIdx;
+                        return (
+                          <div
+                            key={i}
+                            onClick={() => toggleDayStatus(p.id, i)}
+                            className={`flex-1 h-7 sm:h-8 lg:h-10 rounded-md sm:rounded-lg border flex items-center justify-center text-[9px] sm:text-[10px] font-black cursor-pointer transition-all hover:scale-105 active:scale-90 ${isToday ? 'ring-1 sm:ring-2 ring-[#00ff88] ring-offset-2 sm:ring-offset-3 ring-offset-[#0d0d0d]' : ''
+                              } ${status === 'A' ? 'bg-[#00ff88]/10 border-[#00ff88]/30 text-[#00ff88]' : 'bg-[#121212] border-white/5 text-[#444]'
+                              }`}
+                          >
+                            {status}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
       {/* --- MODAL DE CONFIGURACIÓN DE REGLAS --- */}
