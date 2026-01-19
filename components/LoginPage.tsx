@@ -1,16 +1,16 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Lock, 
-  Mail, 
-  Eye, 
-  EyeOff, 
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
   ChevronRight,
   Loader2,
   ShieldCheck
 } from 'lucide-react';
 import { WiseBetLogo } from './WiseBetLogo';
+import { apiClient } from '../services/api.client';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,50 +18,62 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-    
+
+    const formData = new FormData(e.currentTarget);
+    const identifier = formData.get('identifier') as string;
+    const password = formData.get('password') as string;
+
     try {
-      // Preservamos la lógica de navegación original
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await apiClient.login({
+        identifier,
+        password,
+      });
+
+      console.log('Login exitoso:', response);
+      // Los tokens ya están guardados automáticamente por el apiClient
       navigate('/dashboard');
-    } catch (err) {
-      setError("ACCESO DENEGADO: Credenciales inválidas.");
+    } catch (err: any) {
+      console.error('Error en login:', err);
+      const errorMessage = err.detail || err.message || "ACCESO DENEGADO: Credenciales inválidas.";
+      setError(errorMessage);
+    } finally {
       setIsLoading(false);
     }
   };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center p-6 bg-[#050505] overflow-hidden selection:bg-primary/30 font-sans">
-      
+
       {/* Background Decor: Subtle Center Glow */}
       <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
         <div className="w-[60%] h-[60%] bg-primary/5 rounded-full blur-[120px] opacity-50" />
       </div>
 
       <main className="relative z-10 w-full max-w-[480px] flex flex-col items-center animate-in fade-in duration-1000">
-        
+
         {/* Main Branding Block (Inspirado en WiseBet Lab) */}
         <div className="flex flex-col items-center mb-12 text-center">
           <div className="mb-6 opacity-80">
             <WiseBetLogo className="w-12 h-12 text-white" />
           </div>
-          
+
           <div className="flex flex-col items-center">
-             <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-2">
-               Neural Network Inference Online
-             </span>
-             <h1 className="text-6xl md:text-7xl font-black tracking-tighter flex items-center">
-               <span className="text-white">WISEBET</span>
-               <span className="animate-gradient-shift bg-gradient-to-r from-[#00ff88] via-[#00d4ff] to-[#00ff88] bg-[length:200%_auto] bg-clip-text text-transparent ml-1">
-                 CORE
-               </span>
-             </h1>
-             <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.6em] mt-2">
-               RESEARCH & DATA SYSTEMS
-             </span>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-2">
+              Neural Network Inference Online
+            </span>
+            <h1 className="text-6xl md:text-7xl font-black tracking-tighter flex items-center">
+              <span className="text-white">WISEBET</span>
+              <span className="animate-gradient-shift bg-gradient-to-r from-[#00ff88] via-[#00d4ff] to-[#00ff88] bg-[length:200%_auto] bg-clip-text text-transparent ml-1">
+                CORE
+              </span>
+            </h1>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.6em] mt-2">
+              RESEARCH & DATA SYSTEMS
+            </span>
           </div>
         </div>
 
@@ -86,13 +98,13 @@ const LoginPage: React.FC = () => {
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-primary transition-colors">
                     <Mail size={16} />
                   </div>
-                  <input 
+                  <input
                     className="w-full h-13 rounded-xl bg-black/60 border border-white/10 px-12 text-sm text-white placeholder:text-slate-800 outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/5 transition-all duration-300"
-                    type="text" 
-                    id="email" 
-                    name="email"
-                    placeholder="USER_ID" 
-                    defaultValue="admin@wisebet.com"
+                    type="text"
+                    id="identifier"
+                    name="identifier"
+                    placeholder="USER_ID"
+                    defaultValue="admin"
                     required
                     disabled={isLoading}
                   />
@@ -108,17 +120,17 @@ const LoginPage: React.FC = () => {
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-primary transition-colors">
                     <Lock size={16} />
                   </div>
-                  <input 
+                  <input
                     className="w-full h-13 rounded-xl bg-black/60 border border-white/10 px-12 pr-14 text-sm text-white placeholder:text-slate-800 outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/5 transition-all duration-300"
-                    type={showPassword ? "text" : "password"} 
-                    id="password" 
+                    type={showPassword ? "text" : "password"}
+                    id="password"
                     name="password"
-                    placeholder="••••••••" 
-                    defaultValue="password"
+                    placeholder="••••••••"
+                    defaultValue="1234"
                     required
                     disabled={isLoading}
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700 hover:text-white transition-colors"
@@ -130,9 +142,9 @@ const LoginPage: React.FC = () => {
             </div>
 
             {/* Main Action Button - High Contrast Style */}
-            <button 
+            <button
               disabled={isLoading}
-              className="group relative w-full h-13 flex items-center justify-center rounded-xl bg-white text-black font-black text-[11px] uppercase tracking-[0.25em] hover:bg-[#f0f0f0] transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-xl" 
+              className="group relative w-full h-13 flex items-center justify-center rounded-xl bg-white text-black font-black text-[11px] uppercase tracking-[0.25em] hover:bg-[#f0f0f0] transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-xl"
               type="submit"
             >
               {isLoading ? (
@@ -151,9 +163,9 @@ const LoginPage: React.FC = () => {
 
           {/* Secondary Action */}
           <div className="mt-6">
-             <button className="w-full h-11 border border-white/10 text-[9px] font-black text-white uppercase tracking-[0.2em] rounded-xl hover:bg-white/5 transition-all">
-                Planes Nodos
-             </button>
+            <button className="w-full h-11 border border-white/10 text-[9px] font-black text-white uppercase tracking-[0.2em] rounded-xl hover:bg-white/5 transition-all">
+              Planes Nodos
+            </button>
           </div>
         </div>
 

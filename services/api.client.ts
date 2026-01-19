@@ -4,6 +4,7 @@
  */
 
 import { API_BASE_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, API_ENDPOINTS } from '../config/api.config';
+import type { NavigationResponse } from '../types/navigation.types';
 
 // ============================================================================
 // TYPES
@@ -17,6 +18,30 @@ interface ApiError {
     message: string;
     status: number;
     detail?: string;
+}
+
+export interface User {
+    id: number;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    numero_contacto: string | null;
+    rol: number;
+    nombre_completo: string | null;
+    created_at: string;
+}
+
+export interface LoginRequest {
+    identifier: string;
+    password: string;
+}
+
+export interface LoginResponse {
+    user: User;
+    refresh: string;
+    access: string;
+    message: string;
 }
 
 // ============================================================================
@@ -213,6 +238,53 @@ class ApiClient {
         });
 
         return this.handleResponse<T>(response);
+    }
+
+    // ============================================================================
+    // AUTH METHODS
+    // ============================================================================
+
+    /**
+     * Login - No requiere token de autenticación
+     */
+    async login(credentials: LoginRequest): Promise<LoginResponse> {
+        const response = await fetch(`${this.baseUrl}${API_ENDPOINTS.LOGIN}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(credentials),
+        });
+
+        if (!response.ok) {
+            const error: ApiError = {
+                message: `HTTP Error ${response.status}`,
+                status: response.status,
+            };
+
+            try {
+                const data = await response.json();
+                error.detail = data.detail || data.message || JSON.stringify(data);
+            } catch {
+                // No JSON response
+            }
+
+            throw error;
+        }
+
+        const data: LoginResponse = await response.json();
+
+        // Guardar tokens automáticamente
+        tokenManager.setTokens(data.access, data.refresh);
+
+        return data;
+    }
+
+    /**
+     * Get Navigation - Obtiene el menú de navegación del usuario autenticado
+     */
+    async getNavigation(): Promise<NavigationResponse> {
+        return this.get<NavigationResponse>(API_ENDPOINTS.NAVIGATION);
     }
 }
 
