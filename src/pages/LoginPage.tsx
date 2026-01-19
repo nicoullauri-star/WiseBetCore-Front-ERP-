@@ -9,7 +9,7 @@ import {
   Loader2,
   ShieldCheck
 } from 'lucide-react';
-import { WiseBetLogo } from './WiseBetLogo';
+import { WiseBetLogo } from '../components/WiseBetLogo';
 import { apiClient } from '../services/api.client';
 
 const LoginPage: React.FC = () => {

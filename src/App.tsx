@@ -1,13 +1,13 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LoginPage from './components/LoginPage';
-import GlobalDashboard from './components/GlobalDashboard';
-import AuditPanel from './components/AuditPanel';
-import ValuebetsAnalysis from './components/ValuebetsAnalysis';
-import ExecutionQuality from './components/ExecutionQuality';
-import OperationalCenter from './components/OperationalCenter';
-import OperationalNetwork from './components/OperationalNetwork';
-import FinanceModule from './components/FinanceModule';
+import LoginPage from './pages/LoginPage';
+import GlobalDashboard from './pages/GlobalDashboard';
+import AuditPanel from './pages/AuditPanel';
+import ValuebetsAnalysis from './pages/ValuebetsAnalysis';
+import ExecutionQuality from './pages/ExecutionQuality';
+import OperationalCenter from './pages/OperationalCenter';
+import OperationalNetwork from './pages/OperationalNetwork';
+import FinanceModule from './pages/FinanceModule';
 import Layout from './components/Layout';
 
 // Placeholder for screens under construction (Ops Sub-pages)
@@ -35,37 +35,37 @@ const App: React.FC = () => {
     <HashRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
-        
+
         {/* 1. Vista CEO */}
         <Route path="/ceo" element={
           <Layout>
             <GlobalDashboard />
           </Layout>
         } />
-        
+
         {/* 2. Control Global (Ex-Auditoría KPI) */}
         <Route path="/control-global" element={
           <Layout>
             <AuditPanel />
           </Layout>
         } />
-        
+
         {/* 3. Operaciones */}
-        
+
         {/* 3.1 Picks EV+ */}
         <Route path="/ops/picks/analysis" element={
           <Layout>
-            <PlaceholderPage 
-              title="Picks EV+ | Análisis" 
-              subtitle="Módulo de gestión de picks con valor esperado positivo, filtros avanzados y backtesting." 
+            <PlaceholderPage
+              title="Picks EV+ | Análisis"
+              subtitle="Módulo de gestión de picks con valor esperado positivo, filtros avanzados y backtesting."
             />
           </Layout>
         } />
         <Route path="/ops/picks/quality" element={
           <Layout>
-            <PlaceholderPage 
-              title="Picks EV+ | Calidad (EQS)" 
-              subtitle="Auditoría de ejecución, slippage y métricas de calidad para la vertical de Picks." 
+            <PlaceholderPage
+              title="Picks EV+ | Calidad (EQS)"
+              subtitle="Auditoría de ejecución, slippage y métricas de calidad para la vertical de Picks."
             />
           </Layout>
         } />
@@ -85,17 +85,17 @@ const App: React.FC = () => {
         {/* 3.3 SurebettingEC */}
         <Route path="/ops/surebetting/analysis" element={
           <Layout>
-            <PlaceholderPage 
-              title="SurebettingEC | Análisis" 
-              subtitle="Monitor de arbitraje deportivo, gestión de cuentas y escáner de oportunidades." 
+            <PlaceholderPage
+              title="SurebettingEC | Análisis"
+              subtitle="Monitor de arbitraje deportivo, gestión de cuentas y escáner de oportunidades."
             />
           </Layout>
         } />
         <Route path="/ops/surebetting/quality" element={
           <Layout>
-            <PlaceholderPage 
-              title="SurebettingEC | Calidad" 
-              subtitle="Métricas operativas, tiempos de cierre y eficiencia de capital en arbitraje." 
+            <PlaceholderPage
+              title="SurebettingEC | Calidad"
+              subtitle="Métricas operativas, tiempos de cierre y eficiencia de capital en arbitraje."
             />
           </Layout>
         } />
