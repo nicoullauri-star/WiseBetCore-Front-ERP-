@@ -13,6 +13,7 @@ export const API_ENDPOINTS = {
     LOGOUT: '/api/auth/logout/',
     PROFILE: '/api/auth/profile/',
     TOKEN_REFRESH: '/api/auth/token/refresh/',
+    NAVIGATION: '/api/auth/navigation/',
 
     // Gestión Operativa
     DISTRIBUIDORAS: '/api/gestion-operativa/distribuidoras/',
