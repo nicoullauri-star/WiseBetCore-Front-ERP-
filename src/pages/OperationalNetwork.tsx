@@ -7,13 +7,16 @@ import {
    Clock, AlertCircle, Info, ChevronRight, CheckCircle2,
    Lock, Settings2, FileText, Tags, Trash2, LayoutDashboard,
    Users, Calendar, Sparkles, UserPlus, Save, X, BarChart3, TrendingDown,
-   ChevronDown, ArrowRight, PieChart as PieChartIcon
+   ChevronDown, ArrowRight, PieChart as PieChartIcon, Trophy, Edit
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
    ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
+import { useAgencias, useCasas } from '../hooks';
+import { agenciasService } from '../services';
+import type { Agencia, CreateAgenciaData } from '../types';
 
 // --- CONFIG & THRESHOLDS ---
 const OPS_CONFIG = {
@@ -21,79 +24,6 @@ const OPS_CONFIG = {
    highMovementsThreshold: 150,
    commissionHighThreshold: 100,
    staleSyncMinutes: 60,
-};
-
-const OWNERS_LIST = [
-   "Nicolás Ullauri",
-   "Santiago Muñoz",
-   "Jonathan Ayala",
-   "Paul Jiménez",
-   "Andrés Gavilánez",
-   "Javier Tenesaca"
-];
-
-const BOOKMAKERS = ['Victory', 'Ecuabet', 'OkiBet', 'Sorti', 'LasPlatas', 'Sharkbet'];
-
-// --- DATA TYPES ---
-type AgencyStatus = 'Active' | 'In Review' | 'Blocked';
-
-interface AgencyProfile {
-   id: string;
-   status: 'Activo' | 'Limitado' | 'En pausa';
-   balance: number;
-   lastActivity: string;
-}
-
-interface Agency {
-   id: string;
-   owner: string;
-   bookmaker: string;
-   username: string;
-   password: string;
-   backofficeUrl: string;
-   rakePercent: number;
-   movements: number;
-   houseGGR: number; // Positivo = Casa gana (Verde), Negativo = Casa pierde (Rojo)
-   status: AgencyStatus;
-   lastSyncAt: string;
-   notes: any[];
-   profiles: AgencyProfile[];
-   minRequiredProfiles: number;
-   balanceBackoffice: number;
-}
-
-// --- MOCK DATA SEEDER ---
-const generateSeedAgencies = (): Agency[] => {
-   return Array.from({ length: 18 }).map((_, i) => {
-      const id = `AG-${(i + 1).toString().padStart(3, '0')}`;
-      const bookmaker = BOOKMAKERS[i % BOOKMAKERS.length];
-      const houseGGR = Math.floor(Math.random() * 6000) - 2500;
-      const minReq = 3 + (i % 3);
-      const activeCount = Math.max(0, minReq - (i % 4 === 0 ? 2 : 0));
-
-      return {
-         id,
-         owner: OWNERS_LIST[i % OWNERS_LIST.length],
-         bookmaker,
-         username: `${bookmaker.toLowerCase()}_user_${i}`,
-         password: `pass_${Math.random().toString(36).substring(7)}`,
-         backofficeUrl: `https://bo.${bookmaker.toLowerCase()}.com/admin`,
-         rakePercent: 30 + (i % 15),
-         movements: Math.floor(Math.random() * 180),
-         houseGGR,
-         status: i < 14 ? 'Active' : i < 16 ? 'In Review' : 'Blocked',
-         lastSyncAt: new Date(Date.now() - Math.floor(Math.random() * 5000000)).toISOString(),
-         notes: [],
-         balanceBackoffice: 1200 + Math.random() * 5000,
-         minRequiredProfiles: minReq,
-         profiles: Array.from({ length: activeCount }).map((_, pi) => ({
-            id: `P-${id}-${pi + 1}`,
-            status: 'Activo',
-            balance: 150 + Math.random() * 800,
-            lastActivity: 'Hace 2 horas'
-         }))
-      };
-   });
 };
 
 // --- HELPERS ---
@@ -135,82 +65,115 @@ const OperationalNetwork: React.FC = () => {
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
    const [activeTab, setActiveTab] = useState<'agencias' | 'perfiles' | 'movimientos' | 'usuarios'>('agencias');
-   const [agencies, setAgencies] = useState<Agency[]>([]);
+
+   // --- HOOKS ---
+   const { agencias, isLoading: loadingAgencias, createAgencia, deleteAgencia, refetch: refetchAgencias } = useAgencias();
+   const { casas, isLoading: loadingCasas } = useCasas();
+
    const [search, setSearch] = useState('');
-   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+   const [selectedAgencyId, setSelectedAgencyId] = useState<number | null>(null);
+   const [editingAgency, setEditingAgency] = useState<Agencia | null>(null);
    const [isModalOpen, setIsModalOpen] = useState(false);
+   const [isSubmitting, setIsSubmitting] = useState(false);
 
    // Filtros
    const [dateRangeType, setDateRangeType] = useState<'Mes actual' | '7d' | '30d' | 'Personalizado'>('Mes actual');
-   const [activeFilter, setActiveFilter] = useState<'all' | 'high_comm' | 'gaps'>('all');
-
-   useEffect(() => {
-      setAgencies(generateSeedAgencies());
-   }, []);
+   const [activeFilter, setActiveFilter] = useState<'all' | 'high_comm' | 'gaps'>('all'); // 'gaps' functionality needs profile count check
 
    const rangeLabel = dateRangeType === 'Mes actual' ? '(mes actual)' : '(rango)';
 
    const filteredAgencies = useMemo(() => {
-      let res = agencies.filter(a =>
-         a.id.toLowerCase().includes(search.toLowerCase()) ||
-         a.owner.toLowerCase().includes(search.toLowerCase()) ||
-         a.bookmaker.toLowerCase().includes(search.toLowerCase())
+      // Mocked calculation fields for now as they are not in the model yet
+      const processedAgencies = agencias.map(a => ({
+         ...a,
+         houseGGR: 0, // Placeholder
+         movements: 0, // Placeholder
+         status: a.activo ? 'Active' : 'Blocked'
+      }));
+
+      let res = processedAgencies.filter(a =>
+         a.nombre.toLowerCase().includes(search.toLowerCase()) ||
+         a.responsable.toLowerCase().includes(search.toLowerCase())
       );
 
-      if (activeFilter === 'high_comm') {
-         res = res.filter(a => (a.houseGGR > 0 ? a.houseGGR * (a.rakePercent / 100) : 0) > 100);
-      } else if (activeFilter === 'gaps') {
-         res = res.filter(a => a.profiles.length < a.minRequiredProfiles);
-      }
-
-      return res.sort((a, b) => b.movements - a.movements);
-   }, [agencies, search, activeFilter]);
+      // Simple mock logic for filters as real data is missing metrics
+      return res;
+   }, [agencias, search, activeFilter]);
 
    const stats = useMemo(() => {
-      const totalGGR = filteredAgencies.reduce((acc, a) => acc + a.houseGGR, 0);
-      const winners = [...agencies].sort((a, b) => b.houseGGR - a.houseGGR).slice(0, 5);
-      const losers = [...agencies].sort((a, b) => a.houseGGR - b.houseGGR).slice(0, 5);
-      const commTotal = filteredAgencies.reduce((acc, a) => acc + (a.houseGGR > 0 ? a.houseGGR * (a.rakePercent / 100) : 0), 0);
-      const profileGaps = agencies.filter(a => a.profiles.length < a.minRequiredProfiles);
+      // Placeholder stats until analytics endpoints exist
+      return { totalGGR: 0, winners: [], losers: [], commTotal: 0, profileGaps: [] };
+   }, [filteredAgencies]);
 
-      return { totalGGR, winners, losers, commTotal, profileGaps };
-   }, [filteredAgencies, agencies]);
-
-   const selectedAgency = useMemo(() => agencies.find(a => a.id === selectedAgencyId), [agencies, selectedAgencyId]);
+   const selectedAgency = useMemo(() => filteredAgencies.find(a => a.id_agencia === selectedAgencyId), [filteredAgencies, selectedAgencyId]);
+   const selectedAgencyCasa = useMemo(() => casas.find(c => c.id_casa === selectedAgency?.casa_madre), [selectedAgency, casas]);
 
    // Form State para Nueva Agencia
-   const [formData, setFormData] = useState({
-      owner: OWNERS_LIST[0],
-      bookie: BOOKMAKERS[0],
-      status: 'Active' as AgencyStatus,
-      rake: 30,
-      url: '',
-      user: '',
-      pass: '',
-      minProfiles: 3
+   const [formData, setFormData] = useState<CreateAgenciaData>({
+      nombre: '',
+      responsable: '',
+      contacto: '',
+      email: '',
+      casa_madre: 0,
+      rake_porcentaje: 0,
+      url_backoffice: '',
+      activo: true
    });
 
-   const handleSaveAgency = (e: React.FormEvent) => {
+   const handleSaveAgency = async (e: React.FormEvent) => {
       e.preventDefault();
-      const newAgency: Agency = {
-         id: `AG-${(agencies.length + 1).toString().padStart(3, '0')}`,
-         owner: formData.owner,
-         bookmaker: formData.bookie,
-         username: formData.user,
-         password: formData.pass,
-         backofficeUrl: formData.url,
-         rakePercent: formData.rake,
-         movements: 0,
-         houseGGR: 0,
-         status: formData.status,
-         lastSyncAt: new Date().toISOString(),
-         notes: [],
-         profiles: [],
-         minRequiredProfiles: formData.minProfiles,
-         balanceBackoffice: 0
-      };
-      setAgencies([newAgency, ...agencies]);
-      setIsModalOpen(false);
+      if (!formData.nombre || !formData.responsable || formData.casa_madre === 0) {
+         alert("Complete los campos obligatorios");
+         return;
+      }
+
+      setIsSubmitting(true);
+      try {
+         if (editingAgency) {
+            // Update mode
+            await agenciasService.update(editingAgency.id_agencia, formData);
+            alert("Agencia actualizada con éxito");
+         } else {
+            // Create mode
+            await createAgencia(formData);
+            alert("Agencia creada con éxito");
+         }
+         setIsModalOpen(false);
+         setEditingAgency(null);
+         refetchAgencias();
+         // Reset form
+         setFormData({
+            nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', activo: true
+         });
+      } catch (error) {
+         console.error(error);
+         alert("Error al guardar la agencia");
+      } finally {
+         setIsSubmitting(false);
+      }
+   };
+
+   const openCreateModal = () => {
+      setEditingAgency(null);
+      setFormData({
+         nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', activo: true
+      });
+      setIsModalOpen(true);
+   };
+
+   const openEditModal = (agency: Agencia) => {
+      setEditingAgency(agency);
+      setFormData({
+         nombre: agency.nombre,
+         responsable: agency.responsable,
+         contacto: agency.contacto || '',
+         email: agency.email || '',
+         casa_madre: agency.casa_madre,
+         rake_porcentaje: agency.rake_porcentaje,
+         url_backoffice: agency.url_backoffice || '',
+         activo: agency.activo
+      });
+      setIsModalOpen(true);
    };
 
    const tabs = [
@@ -247,7 +210,7 @@ const OperationalNetwork: React.FC = () => {
                      ))}
                   </div>
                   <button
-                     onClick={() => setIsModalOpen(true)}
+                     onClick={openCreateModal}
                      className="flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 bg-primary text-white text-[9px] sm:text-[10px] font-black uppercase rounded-lg sm:rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all active:scale-95 flex-shrink-0"
                   >
                      <Plus size={14} /> <span className="hidden xs:inline">Nueva</span>
@@ -261,8 +224,8 @@ const OperationalNetwork: React.FC = () => {
                      key={tab.id}
                      onClick={() => setActiveTab(tab.id as any)}
                      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider sm:tracking-widest transition-all border-b-2 whitespace-nowrap flex-shrink-0 ${activeTab === tab.id
-                           ? 'bg-primary/10 border-primary text-primary'
-                           : 'border-transparent text-text-secondary hover:text-white hover:bg-white/5'
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'border-transparent text-text-secondary hover:text-white hover:bg-white/5'
                         }`}
                   >
                      {tab.icon} {tab.label}
@@ -274,6 +237,109 @@ const OperationalNetwork: React.FC = () => {
          {activeTab === 'agencias' ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-6 space-y-6 sm:space-y-10 pb-32 sm:pb-40">
 
+
+               {/* 1.5 TOP AGENCIES & QUICK ACTIONS */}
+               <section className="bg-surface-dark/50 border border-border-dark/50 rounded-3xl p-6 backdrop-blur-sm mb-6">
+                  <div className="flex justify-between items-center mb-6">
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg text-primary"><Trophy size={18} /></div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Top Agencias</h3>
+                     </div>
+                     <button onClick={openCreateModal} className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary text-primary hover:text-white text-[10px] font-black uppercase rounded-xl transition-all border border-primary/20 hover:border-primary">
+                        <Plus size={14} /> Nueva Agencia
+                     </button>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                     {agencias.slice(0, 5).map((agency, idx) => (
+                        <div key={agency.id_agencia} className="group relative bg-[#0f1115] border border-white/5 hover:border-primary/50 rounded-2xl p-4 transition-all hover:shadow-lg hover:shadow-primary/5 hover:translate-x-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+                           {/* Info Principal */}
+                           <div className="flex items-center gap-4 w-full sm:w-1/3">
+                              <div className="flex flex-col items-center gap-1 min-w-[3rem]">
+                                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rank</span>
+                                 <span className="text-lg font-black text-white">#{idx + 1}</span>
+                              </div>
+                              <div className="p-3 bg-white/5 rounded-xl text-slate-400 group-hover:text-white group-hover:bg-primary/20 transition-all">
+                                 <Store size={20} />
+                              </div>
+                              <div>
+                                 <h4 className="text-sm font-black text-white">{agency.nombre}</h4>
+                                 <p className="text-[10px] text-slate-500 font-bold uppercase">{casas.find(c => c.id_casa === agency.casa_madre)?.nombre || 'Unknown Bookie'}</p>
+                              </div>
+                           </div>
+
+                           {/* Detalles Completos */}
+                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full sm:w-1/2">
+                              <div className="flex flex-col">
+                                 <span className="text-[9px] font-bold text-slate-600 uppercase">Responsable</span>
+                                 <span className="text-[11px] text-slate-300 font-semibold truncate">{agency.responsable}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-[9px] font-bold text-slate-600 uppercase">Contacto</span>
+                                 <span className="text-[11px] text-slate-300 font-semibold truncate">{agency.contacto || '-'}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-[9px] font-bold text-slate-600 uppercase">Rake</span>
+                                 <span className="text-[11px] text-slate-300 font-semibold">{agency.rake_porcentaje}%</span>
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-[9px] font-bold text-slate-600 uppercase">Estado</span>
+                                 <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${agency.activo ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                    <span className={`text-[10px] font-bold ${agency.activo ? 'text-emerald-500' : 'text-rose-500'}`}>{agency.activo ? 'ACTIVO' : 'INACTIVO'}</span>
+                                 </div>
+                              </div>
+                           </div>
+
+                           {/* Acciones */}
+                           <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:opacity-0 sm:translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                              <button
+                                 onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditModal(agency);
+                                 }}
+                                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-wider"
+                              >
+                                 <Edit size={12} /> Editar
+                              </button>
+                              <button
+                                 onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm('¿Eliminar agencia?')) {
+                                       try {
+                                          await deleteAgencia(agency.id_agencia);
+                                          alert("Agencia eliminada");
+                                       } catch (err) {
+                                          alert('Error al eliminar');
+                                       }
+                                    }
+                                 }}
+                                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-wider"
+                              >
+                                 <Trash2 size={12} /> Eliminar
+                              </button>
+                           </div>
+
+                           {/* Backoffice Link Hint */}
+                           {agency.url_backoffice && (
+                              <a href={agency.url_backoffice} target="_blank" rel="noreferrer" className="absolute top-2 right-2 p-1.5 text-slate-700 hover:text-primary transition-colors">
+                                 <ExternalLink size={12} />
+                              </a>
+                           )}
+                        </div>
+                     ))}
+                     {agencias.length === 0 && (
+                        <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-3xl bg-white/5 mx-auto w-full">
+                           <div className="mx-auto w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-3">
+                              <Store className="text-slate-600" size={20} />
+                           </div>
+                           <p className="text-xs text-slate-400 font-bold uppercase">No se encontraron agencias</p>
+                        </div>
+                     )}
+                  </div>
+               </section>
+
                {/* 2. PANELES INTERACTIVOS */}
                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   <InteractivePanel
@@ -281,8 +347,8 @@ const OperationalNetwork: React.FC = () => {
                      subtitle="Top Profit Casa"
                      icon={<TrendingUp size={16} />}
                      color="success"
-                     data={stats.winners.map(w => ({ id: w.id, val: fmtMoney(w.houseGGR), sub: w.bookmaker }))}
-                     onClick={(id) => setSelectedAgencyId(id)}
+                     data={stats.winners.map((w: any) => ({ id: w.nombre, val: fmtMoney(w.houseGGR || 0), sub: w.responsable }))}
+                     onClick={(id: number) => setSelectedAgencyId(id)}
                   />
                   <InteractivePanel
                      title="Casa perdiendo (Riesgo)"
@@ -290,8 +356,8 @@ const OperationalNetwork: React.FC = () => {
                      icon={<TrendingDown size={16} />}
                      color="danger"
                      warning="Si la casa pierde, la comisión puede bajar."
-                     data={stats.losers.map(l => ({ id: l.id, val: fmtMoney(l.houseGGR), sub: l.bookmaker }))}
-                     onClick={(id) => setSelectedAgencyId(id)}
+                     data={stats.losers.map((l: any) => ({ id: l.nombre, val: fmtMoney(l.houseGGR || 0), sub: l.responsable }))}
+                     onClick={(id: number) => setSelectedAgencyId(id)}
                   />
                   <InteractivePanel
                      title="Comisión a proteger"
@@ -328,13 +394,13 @@ const OperationalNetwork: React.FC = () => {
                      </div>
                      <div className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
-                           <BarChart data={BOOKMAKERS.map(b => ({ name: b, val: agencies.filter(a => a.bookmaker === b).reduce((acc, curr) => acc + curr.houseGGR, 0) }))}>
+                           <BarChart data={casas.map(b => ({ name: b.nombre, val: agencias.filter(a => a.casa_madre === b.id_casa).length }))}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
                               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
                               <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
                               <RechartsTooltip contentStyle={{ backgroundColor: '#111318', border: 'none', borderRadius: '12px' }} />
                               <Bar dataKey="val" radius={[4, 4, 0, 0]}>
-                                 {BOOKMAKERS.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? '#135bec' : '#2563eb'} />)}
+                                 {casas.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? '#135bec' : '#2563eb'} />)}
                               </Bar>
                            </BarChart>
                         </ResponsiveContainer>
@@ -352,8 +418,8 @@ const OperationalNetwork: React.FC = () => {
                            <PieChart>
                               <Pie
                                  data={[
-                                    { name: 'Casa Ganando', value: agencies.filter(a => a.houseGGR > 0).length },
-                                    { name: 'Casa Perdiendo', value: agencies.filter(a => a.houseGGR <= 0).length }
+                                    { name: 'Casa Ganando', value: 0 },
+                                    { name: 'Casa Perdiendo', value: 0 }
                                  ]}
                                  innerRadius={60}
                                  outerRadius={80}
@@ -409,29 +475,29 @@ const OperationalNetwork: React.FC = () => {
                         </thead>
                         <tbody className="text-[11px]">
                            {filteredAgencies.map((a) => {
-                              const comm = a.houseGGR > 0 ? (a.houseGGR * (a.rakePercent / 100)) : 0;
-                              const missing = Math.max(0, a.minRequiredProfiles - a.profiles.length);
+                              const comm = a.houseGGR > 0 ? (a.houseGGR * (a.rake_porcentaje / 100)) : 0;
+                              const missing = 0; // Placeholder until min profiles defined
 
                               return (
                                  <tr
-                                    key={a.id}
-                                    onClick={() => setSelectedAgencyId(a.id)}
+                                    key={a.id_agencia}
+                                    onClick={() => setSelectedAgencyId(a.id_agencia)}
                                     className="border-b border-border-dark/20 hover:bg-white/[0.02] cursor-pointer transition-all group"
                                  >
-                                    <td className="px-6 py-5 font-mono font-black text-primary">{a.id}</td>
-                                    <td className="px-6 py-5 font-bold text-white">{a.owner}</td>
-                                    <td className="px-6 py-5 font-bold text-slate-400">{a.bookmaker}</td>
+                                    <td className="px-6 py-5 font-mono font-black text-primary">{a.nombre}</td>
+                                    <td className="px-6 py-5 font-bold text-white">{a.responsable}</td>
+                                    <td className="px-6 py-5 font-bold text-slate-400">{casas.find(c => c.id_casa === a.casa_madre)?.nombre || `Id: ${a.casa_madre}`}</td>
                                     <td className="px-6 py-5">
-                                       <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase border ${a.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                          }`}>{a.status === 'Active' ? 'Activo' : 'Bloqueado'}</span>
+                                       <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase border ${a.activo ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                          }`}>{a.activo ? 'Activo' : 'Bloqueado'}</span>
                                     </td>
-                                    <td className="px-6 py-5 text-center font-bold text-slate-500">{a.rakePercent}%</td>
-                                    <td className="px-6 py-5 text-right font-mono font-black text-white">{a.movements}</td>
-                                    <td className={`px-6 py-5 text-right font-mono font-black text-sm ${a.houseGGR >= 0 ? 'text-success' : 'text-danger'}`}>
-                                       {fmtMoney(a.houseGGR)}
+                                    <td className="px-6 py-5 text-center font-bold text-slate-500">{a.rake_porcentaje}%</td>
+                                    <td className="px-6 py-5 text-right font-mono font-black text-white">{0}</td>
+                                    <td className={`px-6 py-5 text-right font-mono font-black text-sm text-slate-500`}>
+                                       --
                                     </td>
                                     <td className="px-6 py-5 text-right font-mono font-black">
-                                       {a.houseGGR > 0 ? (
+                                       {0 > 0 ? (
                                           <span className="text-primary">{fmtMoney(comm)}</span>
                                        ) : (
                                           <PortalTooltip text="Sin comisión en este rango: la casa no va ganando.">
@@ -440,10 +506,10 @@ const OperationalNetwork: React.FC = () => {
                                        )}
                                     </td>
                                     <td className="px-6 py-5">
-                                       <PortalTooltip text={`Recomendación: \n- Mínimo recomendado: ${a.minRequiredProfiles}\n- Faltan: ${missing}\n- Próxima creación: Sugerida 1/sem`}>
+                                       <PortalTooltip text={`Recomendación: \n- Próxima creación: Sugerida 1/sem`}>
                                           <div className="flex flex-col gap-1">
                                              <div className="flex items-center gap-2">
-                                                <span className="text-white font-black">Activos: {a.profiles.length}</span>
+                                                <span className="text-white font-black">Total: {a.perfiles_totales}</span>
                                                 {missing > 0 && <span className="bg-rose-500/20 text-rose-500 text-[8px] px-1.5 py-0.5 rounded font-black">Faltan: {missing}</span>}
                                              </div>
                                           </div>
@@ -481,8 +547,8 @@ const OperationalNetwork: React.FC = () => {
                      <div className="flex items-center gap-4">
                         <div className="p-2.5 bg-primary/20 rounded-2xl text-primary border border-primary/20"><Store size={28} /></div>
                         <div>
-                           <h2 className="text-xl font-black text-white tracking-tighter">{selectedAgency.id}</h2>
-                           <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">{selectedAgency.bookmaker} • {selectedAgency.owner}</p>
+                           <h2 className="text-xl font-black text-white tracking-tighter">{selectedAgency.nombre}</h2>
+                           <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">{selectedAgencyCasa?.nombre || selectedAgency.casa_madre} • {selectedAgency.responsable}</p>
                         </div>
                      </div>
                      <button onClick={() => setSelectedAgencyId(null)} className="p-2 hover:bg-white/5 rounded-full transition-colors text-text-secondary hover:text-white"><X size={20} /></button>
@@ -492,9 +558,9 @@ const OperationalNetwork: React.FC = () => {
                      {/* A. Resumen */}
                      <section className="grid grid-cols-2 gap-4">
                         <MetricCard label="GGR Casa" value={fmtMoney(selectedAgency.houseGGR)} color={selectedAgency.houseGGR >= 0 ? 'success' : 'danger'} sub={rangeLabel} />
-                        <MetricCard label="Comisión Est." value={selectedAgency.houseGGR > 0 ? fmtMoney(selectedAgency.houseGGR * (selectedAgency.rakePercent / 100)) : "—"} color="primary" sub={rangeLabel} />
+                        <MetricCard label="Comisión Est." value={selectedAgency.houseGGR > 0 ? fmtMoney(selectedAgency.houseGGR * (selectedAgency.rake_porcentaje / 100)) : "—"} color="primary" sub={rangeLabel} />
                         <MetricCard label="Movimientos" value={selectedAgency.movements} sub={rangeLabel} />
-                        <MetricCard label="Rake %" value={`${selectedAgency.rakePercent}%`} />
+                        <MetricCard label="Rake %" value={`${selectedAgency.rake_porcentaje}%`} />
                      </section>
 
                      {/* B. Saldo */}
@@ -502,7 +568,7 @@ const OperationalNetwork: React.FC = () => {
                         <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none group-hover:scale-110 transition-transform"><Activity size={80} /></div>
                         <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest mb-2">Saldo de la Agencia (Backoffice)</p>
                         <div className="flex items-baseline gap-3">
-                           <span className="text-3xl font-black text-white">{fmtMoney(selectedAgency.balanceBackoffice)}</span>
+                           <span className="text-3xl font-black text-white">{fmtMoney(0)}</span>
                            <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase border border-emerald-500/20">Sincronizado</span>
                         </div>
                      </section>
@@ -513,7 +579,7 @@ const OperationalNetwork: React.FC = () => {
                            <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
                               <Users size={14} className="text-primary" /> Perfiles de la Agencia
                            </h3>
-                           <span className="text-[10px] font-bold text-text-secondary uppercase">{selectedAgency.profiles.length} Activos</span>
+                           <span className="text-[10px] font-bold text-text-secondary uppercase">{selectedAgency.perfiles_totales} Activos</span>
                         </div>
                         <div className="bg-background-dark border border-border-dark rounded-2xl overflow-hidden">
                            <table className="w-full text-left">
@@ -526,14 +592,12 @@ const OperationalNetwork: React.FC = () => {
                                  </tr>
                               </thead>
                               <tbody className="text-[10px]">
-                                 {selectedAgency.profiles.map(p => (
-                                    <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => navigate(`/red-operativa?tab=perfiles&perfil=${p.id}&agencia=${selectedAgency.id}`)}>
-                                       <td className="px-4 py-3 font-mono font-bold text-white">{p.id}</td>
-                                       <td className="px-4 py-3"><span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded font-black uppercase text-[8px]">{p.status}</span></td>
-                                       <td className="px-4 py-3 text-right font-mono font-bold text-slate-300">{fmtMoney(p.balance)}</td>
-                                       <td className="px-4 py-3 text-right"><ChevronRight size={14} className="text-slate-700" /></td>
-                                    </tr>
-                                 ))}
+                                 {/* Placeholder until profiles endpoint is ready */}
+                                 <tr>
+                                    <td colSpan={4} className="p-4 text-center text-text-secondary italic">
+                                       Detalle de perfiles no disponible en vista previa
+                                    </td>
+                                 </tr>
                               </tbody>
                            </table>
                            {selectedAgency.profiles.length === 0 && (
@@ -586,99 +650,132 @@ const OperationalNetwork: React.FC = () => {
          {isModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
                <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
-               <div className="relative w-full max-w-2xl bg-surface-dark border border-border-dark rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-                  <div className="p-8 border-b border-border-dark flex justify-between items-center bg-[#151b26]">
+               <div className="relative w-full max-w-lg lg:max-w-xl bg-[#0f1115] border border-white/10 rounded-[2rem] shadow-2xl shadow-primary/5 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-5 fade-in duration-300">
+
+                  {/* Header */}
+                  <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-white/5 flex justify-between items-center bg-[#151b26]/50 backdrop-blur-xl shrink-0">
                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-primary rounded-2xl text-white shadow-lg shadow-primary/20"><UserPlus size={24} /></div>
+                        <div className="p-2.5 sm:p-3 bg-gradient-to-br from-primary to-blue-600 rounded-2xl text-white shadow-lg shadow-primary/20 ring-1 ring-white/10 group-hover:scale-110 transition-transform duration-500">
+                           {editingAgency ? <Edit size={20} className="sm:w-6 sm:h-6" /> : <UserPlus size={20} className="sm:w-6 sm:h-6" />}
+                        </div>
                         <div>
-                           <h2 className="text-xl font-black text-white uppercase tracking-tight">Registrar Nueva Agencia</h2>
-                           <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Configuración inicial del canal operativo</p>
+                           <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">{editingAgency ? `Editar: ${editingAgency.nombre}` : 'Registrar Agencia'}</h2>
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest hidden sm:block">{editingAgency ? 'Modifica los parámetros de la agencia' : 'Configuración inicial del canal operativo'}</p>
                         </div>
                      </div>
-                     <button onClick={() => setIsModalOpen(false)} className="text-text-secondary hover:text-white transition-colors"><X size={24} /></button>
+                     <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
+                        <X size={20} />
+                     </button>
                   </div>
 
-                  <form className="p-8 grid grid-cols-2 gap-6" onSubmit={handleSaveAgency}>
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-text-secondary uppercase ml-1">Dueño Responsable</label>
-                        <select
-                           value={formData.owner}
-                           onChange={e => setFormData({ ...formData, owner: e.target.value })}
-                           className="w-full bg-background-dark border border-border-dark rounded-2xl py-3.5 px-4 text-sm text-white focus:border-primary outline-none transition-all cursor-pointer"
-                        >
-                           {OWNERS_LIST.map(o => <option key={o} value={o}>{o}</option>)}
-                        </select>
-                     </div>
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-text-secondary uppercase ml-1">Casa de Apuestas</label>
-                        <select
-                           value={formData.bookie}
-                           onChange={e => setFormData({ ...formData, bookie: e.target.value })}
-                           className="w-full bg-background-dark border border-border-dark rounded-2xl py-3.5 px-4 text-sm text-white focus:border-primary outline-none transition-all cursor-pointer"
-                        >
-                           {BOOKMAKERS.map(b => <option key={b} value={b}>{b}</option>)}
-                        </select>
-                     </div>
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-text-secondary uppercase ml-1">Rake %</label>
-                        <input
-                           type="number" min={25} max={45}
-                           value={formData.rake}
-                           onChange={e => setFormData({ ...formData, rake: parseInt(e.target.value) })}
-                           className="w-full bg-background-dark border border-border-dark rounded-2xl py-3.5 px-4 text-sm text-white focus:border-primary outline-none"
-                        />
-                     </div>
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-text-secondary uppercase ml-1">Perfiles Mín. Recomendados</label>
-                        <input
-                           type="number" min={1}
-                           value={formData.minProfiles}
-                           onChange={e => setFormData({ ...formData, minProfiles: parseInt(e.target.value) })}
-                           className="w-full bg-background-dark border border-border-dark rounded-2xl py-3.5 px-4 text-sm text-white focus:border-primary outline-none"
-                        />
-                     </div>
-                     <div className="col-span-2 space-y-1.5">
-                        <label className="text-[10px] font-black text-text-secondary uppercase ml-1">Enlace Backoffice</label>
-                        <input
-                           type="url" placeholder="https://..."
-                           value={formData.url}
-                           onChange={e => setFormData({ ...formData, url: e.target.value })}
-                           className="w-full bg-background-dark border border-border-dark rounded-2xl py-3.5 px-4 text-sm text-white focus:border-primary outline-none"
-                        />
-                     </div>
-
-                     {/* ASISTENTE GEMINI PLACEHOLDER */}
-                     <div className="col-span-2 p-6 bg-primary/5 border border-primary/20 rounded-[2rem] space-y-4">
-                        <div className="flex items-center justify-between">
-                           <div className="flex items-center gap-3">
-                              <Sparkles className="text-primary" size={20} />
-                              <span className="text-[11px] font-black text-primary uppercase tracking-widest">Asistente IA (Gemini)</span>
+                  {/* Scrollable Content */}
+                  <div className="overflow-y-auto custom-scrollbar p-6 sm:p-8 flex-1">
+                     <form id="agency-form" className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6" onSubmit={handleSaveAgency}>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Nombre de Agencia</label>
+                           <input
+                              type="text" required
+                              value={formData.nombre}
+                              onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
+                              placeholder="Ej. AG-UIO-CENTRO"
+                           />
+                        </div>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Dueño Responsable</label>
+                           <input
+                              type="text" required
+                              value={formData.responsable}
+                              onChange={e => setFormData({ ...formData, responsable: e.target.value })}
+                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
+                              placeholder="Nombre completo"
+                           />
+                        </div>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Contacto / Teléfono</label>
+                           <input
+                              type="text"
+                              value={formData.contacto}
+                              onChange={e => setFormData({ ...formData, contacto: e.target.value })}
+                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
+                              placeholder="+593 99..."
+                           />
+                        </div>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Correo Electrónico</label>
+                           <input
+                              type="email"
+                              value={formData.email}
+                              onChange={e => setFormData({ ...formData, email: e.target.value })}
+                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
+                              placeholder="agencia@ejemplo.com"
+                           />
+                        </div>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Casa de Apuestas</label>
+                           <div className="relative">
+                              <select
+                                 value={formData.casa_madre}
+                                 required
+                                 onChange={e => setFormData({ ...formData, casa_madre: Number(e.target.value) })}
+                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer"
+                              >
+                                 <option value={0}>Seleccione Casa</option>
+                                 {casas.map(b => <option key={b.id_casa} value={b.id_casa}>{b.nombre}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                            </div>
-                           <span className="text-[8px] font-black bg-primary text-white px-2 py-0.5 rounded-full uppercase">Alpha</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                           <button type="button" className="p-2.5 bg-background-dark border border-border-dark rounded-xl text-[9px] font-bold text-slate-400 hover:text-white transition-all flex flex-col items-center gap-1.5 group">
-                              <BadgeCheck size={14} className="group-hover:text-primary" />
-                              Generar Credenciales
-                           </button>
-                           <button type="button" className="p-2.5 bg-background-dark border border-border-dark rounded-xl text-[9px] font-bold text-slate-400 hover:text-white transition-all flex flex-col items-center gap-1.5 group">
-                              <FileText size={14} className="group-hover:text-primary" />
-                              Redactar Nota Ops
-                           </button>
-                           <button type="button" className="p-2.5 bg-background-dark border border-border-dark rounded-xl text-[9px] font-bold text-slate-400 hover:text-white transition-all flex flex-col items-center gap-1.5 group">
-                              <Calendar size={14} className="group-hover:text-primary" />
-                              Sugerir Plan Perfiles
-                           </button>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Rake %</label>
+                           <input
+                              type="number" min={0} max={100} step={0.1}
+                              value={formData.rake_porcentaje}
+                              onChange={e => setFormData({ ...formData, rake_porcentaje: parseFloat(e.target.value) })}
+                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all"
+                           />
                         </div>
-                     </div>
+                        <div className="col-span-1 sm:col-span-2 space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Enlace Backoffice</label>
+                           <input
+                              type="url" placeholder="https://panel.ejemplo.com"
+                              value={formData.url_backoffice}
+                              onChange={e => setFormData({ ...formData, url_backoffice: e.target.value })}
+                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
+                           />
+                        </div>
 
-                     <div className="col-span-2 flex justify-end gap-3 pt-4 border-t border-border-dark">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-xs font-black uppercase text-text-secondary hover:text-white transition-all">Cancelar</button>
-                        <button type="submit" className="flex items-center gap-2 px-10 py-3 bg-primary text-white text-xs font-black uppercase rounded-2xl hover:bg-primary-hover shadow-xl shadow-primary/20 active:scale-95 transition-all">
-                           <Save size={18} /> Guardar Agencia
-                        </button>
-                     </div>
-                  </form>
+                        {/* Asistente IA */}
+                        <div className="col-span-1 sm:col-span-2 p-5 bg-gradient-to-br from-primary/5 to-blue-500/5 border border-primary/20 rounded-2xl space-y-3 mt-2">
+                           <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                 <Sparkles className="text-primary" size={16} />
+                                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">Asistente Gemini</span>
+                              </div>
+                              <span className="text-[8px] font-black bg-primary/20 text-primary px-2 py-0.5 rounded-md uppercase border border-primary/20">Beta</span>
+                           </div>
+                           <div className="flex flex-wrap gap-2">
+                              <button type="button" className="px-3 py-2 bg-[#0a0b0e]/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[9px] font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5 group">
+                                 <BadgeCheck size={12} className="group-hover:text-primary transition-colors" /> Generar Credenciales
+                              </button>
+                              <button type="button" className="px-3 py-2 bg-[#0a0b0e]/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[9px] font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5 group">
+                                 <FileText size={12} className="group-hover:text-primary transition-colors" /> Redactar Nota
+                              </button>
+                           </div>
+                        </div>
+                     </form>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-[#0a0b0e]/30 shrink-0">
+                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                        Cancelar
+                     </button>
+                     <button form="agency-form" type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-8 py-2.5 bg-primary text-white text-[10px] font-black uppercase rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isSubmitting ? <span className="animate-spin"><History size={16} /></span> : (editingAgency ? <Save size={16} /> : <Plus size={16} />)}
+                        <span>{isSubmitting ? 'Guardando...' : (editingAgency ? 'Actualizar Agencia' : 'Guardar Agencia')}</span>
+                     </button>
+                  </div>
                </div>
             </div>
          )}
@@ -688,7 +785,7 @@ const OperationalNetwork: React.FC = () => {
 
 // --- SUB-COMPONENTS ---
 
-const InteractivePanel = ({ title, subtitle, icon, color, data, warning, onClick, isFilter, isActive }: any) => {
+function InteractivePanel({ title, subtitle, icon, color, data, warning, onClick, isFilter, isActive }: any) {
    const styles: any = {
       success: 'text-success bg-success/10 border-success/20 group-hover:border-success/40 shadow-success/5',
       danger: 'text-danger bg-danger/10 border-danger/20 group-hover:border-danger/40 shadow-danger/5',
@@ -731,10 +828,12 @@ const InteractivePanel = ({ title, subtitle, icon, color, data, warning, onClick
    );
 };
 
-const FilterChip = ({ label, icon, active }: any) => (
-   <button className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase transition-all ${active ? 'bg-primary/20 border-primary text-primary' : 'bg-background-dark border-border-dark text-text-secondary hover:text-white'}`}>
-      {icon} {label} <ChevronDown size={10} className="opacity-50" />
-   </button>
-);
+function FilterChip({ label, icon, active }: any) {
+   return (
+      <button className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase transition-all ${active ? 'bg-primary/20 border-primary text-primary' : 'bg-background-dark border-border-dark text-text-secondary hover:text-white'}`}>
+         {icon} {label} <ChevronDown size={10} className="opacity-50" />
+      </button>
+   );
+}
 
 export default OperationalNetwork;

@@ -16,6 +16,9 @@ interface UseDistribuidorasState {
 
 interface UseDistribuidorasReturn extends UseDistribuidorasState {
     refetch: () => Promise<void>;
+    createDistribuidora: (data: any) => Promise<any>;
+    updateDistribuidora: (id: number, data: any) => Promise<any>;
+    deleteDistribuidora: (id: number) => Promise<void>;
 }
 
 /**
@@ -63,8 +66,40 @@ export function useDistribuidoras(): UseDistribuidorasReturn {
         fetchDistribuidoras();
     }, [fetchDistribuidoras]);
 
+    const createDistribuidora = async (data: any) => {
+        try {
+            const newDist = await distribuidorasService.create(data);
+            await fetchDistribuidoras();
+            return newDist;
+        } catch (err) {
+            throw err;
+        }
+    };
+
+    const updateDistribuidora = async (id: number, data: any) => {
+        try {
+            const updatedDist = await distribuidorasService.update(id, data);
+            await fetchDistribuidoras();
+            return updatedDist;
+        } catch (err) {
+            throw err;
+        }
+    };
+
+    const deleteDistribuidora = async (id: number) => {
+        try {
+            await distribuidorasService.delete(id);
+            await fetchDistribuidoras();
+        } catch (err) {
+            throw err;
+        }
+    };
+
     return {
         ...state,
         refetch: fetchDistribuidoras,
+        createDistribuidora,
+        updateDistribuidora,
+        deleteDistribuidora,
     };
 }

@@ -12,3 +12,19 @@ export type {
     CreateDistribuidoraData,
     UpdateDistribuidoraData
 } from './distribuidoras.service';
+
+// Casas Apuestas Exports
+export { casasService } from './casas.service';
+export type {
+    GetCasasParams,
+    CreateCasaData,
+    UpdateCasaData
+} from './casas.service';
+
+export { agenciasService } from './agencias.service';
+export type {
+    GetAgenciasParams,
+    CreateAgenciaData,
+    UpdateAgenciaData
+} from './agencias.service';
+

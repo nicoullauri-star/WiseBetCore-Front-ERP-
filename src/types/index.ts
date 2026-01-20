@@ -62,6 +62,39 @@ export interface CasaApuestas {
 }
 
 // ============================================================================
+// AGENCIAS
+// ============================================================================
+
+export interface Agencia {
+    id_agencia: number;
+    nombre: string;
+    // ubicacion?: number | null; // Placeholder for future
+    responsable: string;
+    contacto?: string;
+    email?: string;
+    casa_madre: number; // ID of CasaApuestas
+    casa_madre_nombre?: string; // Read-only from backend serializer likely
+    rake_porcentaje: number; // Decimal
+    perfiles_totales: number;
+    url_backoffice?: string;
+    activo: boolean;
+    fecha_registro: string;
+}
+
+export interface CreateAgenciaData {
+    nombre: string;
+    responsable: string;
+    contacto?: string;
+    email?: string;
+    casa_madre: number;
+    rake_porcentaje?: number;
+    url_backoffice?: string;
+    activo?: boolean;
+}
+
+export interface UpdateAgenciaData extends Partial<CreateAgenciaData> { }
+
+// ============================================================================
 // ECOSYSTEM TYPE (Para compatibilidad con código existente)
 // ============================================================================
 
