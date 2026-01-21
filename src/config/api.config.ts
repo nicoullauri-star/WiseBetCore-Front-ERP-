@@ -25,6 +25,7 @@ export const API_ENDPOINTS = {
     PLANIFICACION: '/api/gestion-operativa/planificacion-rotacion/',
     ALERTAS: '/api/gestion-operativa/alertas-operativas/',
     BITACORAS: '/api/gestion-operativa/bitacoras-mando/',
+    DEPORTES: '/api/gestion-operativa/deportes/',
 } as const;
 
 // Token keys

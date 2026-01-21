@@ -6,4 +6,5 @@
 export { useDistribuidoras } from './useDistribuidoras';
 export { useCasas } from './useCasas';
 export { useAgencias } from './useAgencias';
+export { useDeportes } from './useDeportes';
 

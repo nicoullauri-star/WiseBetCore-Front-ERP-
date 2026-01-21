@@ -18,7 +18,12 @@ export interface PaginatedResponse<T> {
 // DISTRIBUIDORAS (FLOTAS)
 // ============================================================================
 
-export type Deporte = 'FUTBOL' | 'BASKETBALL' | 'TENNIS' | 'BEISBOL' | 'HOCKEY' | 'ESPORTS';
+export interface Deporte {
+    id_deporte: number;
+    codigo: string;
+    nombre: string;
+    activo: boolean;
+}
 
 export interface CasaApuestasSimple {
     id_casa: number;
@@ -30,7 +35,8 @@ export interface CasaApuestasSimple {
 export interface Distribuidora {
     id_distribuidora: number;
     nombre: string;
-    deportes: Deporte[];
+    deportes: number[];
+    deportes_detalle: Deporte[];
     descripcion: string | null;
     activo: boolean;
     casas_count: number;

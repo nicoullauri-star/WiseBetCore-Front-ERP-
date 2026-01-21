@@ -26,7 +26,7 @@ export interface GetDistribuidorasParams {
 
 export interface CreateDistribuidoraData {
     nombre: string;
-    deportes: string[];
+    deportes: number[];
     descripcion?: string;
     activo?: boolean;
 }

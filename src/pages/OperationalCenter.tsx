@@ -12,10 +12,11 @@ import {
   Copy, UserRound, Briefcase, Sliders, Sparkles, Mail, Verified,
   Store, Building2, Terminal, Clock, Loader2, Trash2, Edit, Plus, Save
 } from 'lucide-react';
-import { useDistribuidoras, useCasas } from '../hooks';
+import { useDistribuidoras, useCasas, useDeportes } from '../hooks';
 import { Modal, Input, Button } from '../components/ui';
 import { apiClient } from '../services/api.client';
 import type { NavigationMenuItem } from '../types/navigation.types';
+import type { Deporte } from '../types';
 
 // --- INTEGRATION INTERFACE ---
 const copyToClipboard = (text: string) => {
@@ -168,6 +169,11 @@ const OperationalCenter: React.FC = () => {
     refetch: refetchCasas
   } = useCasas();
 
+  const {
+    deportes,
+    isLoading: isLoadingDeportes
+  } = useDeportes();
+
   // Used for display logic
   const ECOSISTEMAS = apiEcosistemas.length > 0 ? apiEcosistemas : FALLBACK_ECOSISTEMAS;
 
@@ -180,7 +186,7 @@ const OperationalCenter: React.FC = () => {
   const [isLoadingAction, setIsLoadingAction] = useState(false);
 
   // Forms State
-  const [distForm, setDistForm] = useState({ nombre: '', deportes: [], descripcion: '', activo: true });
+  const [distForm, setDistForm] = useState<{ nombre: string; deportes: number[]; descripcion: string; activo: boolean }>({ nombre: '', deportes: [], descripcion: '', activo: true });
   const [casaForm, setCasaForm] = useState({ nombre: '', url_backoffice: '', perfiles_minimos_req: 3, capital_objetivo: 5000, activo: true });
 
   // --- STATE ---
@@ -248,6 +254,18 @@ const OperationalCenter: React.FC = () => {
 
     loadSectionVisibility();
   }, []);
+
+  const toggleSportSelection = (id: number) => {
+    setDistForm(prev => {
+      const exists = prev.deportes.includes(id);
+      return {
+        ...prev,
+        deportes: exists
+          ? prev.deportes.filter(d => d !== id)
+          : [...prev.deportes, id]
+      };
+    });
+  };
 
   // Time context
   const now = new Date();
@@ -1025,6 +1043,33 @@ const OperationalCenter: React.FC = () => {
             onChange={(e) => setDistForm({ ...distForm, nombre: e.target.value })}
             placeholder="Ej. ALTENAR (Ecuador)"
           />
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider block">Deportes Disponibles</label>
+            {isLoadingDeportes ? (
+              <div className="flex items-center gap-2 text-xs text-[#666]">
+                <Loader2 size={14} className="animate-spin" /> Cargando deportes...
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {deportes.map((deporte: Deporte) => {
+                  const isSelected = distForm.deportes.includes(deporte.id_deporte);
+                  return (
+                    <button
+                      key={deporte.id_deporte}
+                      onClick={() => toggleSportSelection(deporte.id_deporte)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all border ${isSelected
+                          ? 'bg-[#00ff88] text-black border-[#00ff88] shadow-[0_0_10px_rgba(0,255,136,0.3)]'
+                          : 'bg-[#111] text-[#666] border-[#333] hover:text-white hover:border-[#666]'
+                        }`}
+                    >
+                      {deporte.nombre}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider">Descripción (Opcional)</label>
