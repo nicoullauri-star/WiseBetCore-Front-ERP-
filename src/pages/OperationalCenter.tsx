@@ -15,10 +15,14 @@ import {
 import { useDistribuidoras, useCasas, useDeportes } from '../hooks';
 import { Modal, Input, Button } from '../components/ui';
 import { apiClient } from '../services/api.client';
+import { perfilesService } from '../services/perfiles.service';
+import { casasService } from '../services';
+import type { PerfilOperativo } from '../services/perfiles.service';
 import type { NavigationMenuItem } from '../types/navigation.types';
 import type { Deporte } from '../types';
 
 // --- INTEGRATION INTERFACE ---
+// ... (Keep existing helpers) ...
 const copyToClipboard = (text: string) => {
   navigator.clipboard.writeText(text);
   alert(`Copiado al portapapeles: ${text}`);
@@ -111,45 +115,7 @@ const FALLBACK_ECOSISTEMAS = [
   { id: 'VICTORY', name: 'VICTORY / SHARK', houses: ['VICTORY365', 'SHARKBET'] }
 ];
 
-const INITIAL_PROFILES: Profile[] = Array.from({ length: 45 }).map((_, i) => {
-  const eco = FALLBACK_ECOSISTEMAS[i % FALLBACK_ECOSISTEMAS.length];
-  const house = eco.houses[i % eco.houses.length];
-  const isEcuador = eco.id === 'ALTENAR';
-  const agencyId = isEcuador ? (i % 2 === 0 ? 'AG-UIO-01' : 'AG-GYE-02') : undefined;
-  const owner = agencyId ? MOCK_AGENCIES[agencyId].owner : (i % 3 === 0 ? 'Jonathan Ayala' : 'Paul Jiménez');
-
-  return {
-    id: `${house}_${i < 10 ? '0' : ''}${i}`,
-    username: `user_pro_${i}`,
-    password: `pwd_${Math.random().toString(36).substring(7)}`,
-    owner,
-    ownerId: `OWN-${i % 3 + 1}`,
-    bookie: house,
-    backofficeUrl: `https://${house.toLowerCase()}.com`,
-    ecosystem: eco.id,
-    sport: (['Fútbol', 'Tenis', 'Basket'] as Sport[])[i % 3],
-    playerType: (['Agresivo', 'Moderado', 'Casual', 'High-Roller'] as PlayerType[])[i % 4],
-    avgStake: [50, 100, 300, 500][i % 4],
-    opsThisWeek: Math.floor(Math.random() * 20),
-    avgOpsPerWeek: 15 + (i % 10),
-    balance: Math.floor(100 + Math.random() * 4500),
-    notes: "",
-    city: isEcuador ? 'Quito, EC' : 'Lima, PE',
-    ip: `192.168.1.${100 + i}`,
-    preferences: 'Mercados Líquidos, Live',
-    schedule: Array.from({ length: 31 }).map(() => (Math.random() > 0.3 ? 'A' : 'B')),
-    agencyId,
-    finances: Array.from({ length: 5 }).map((_, ti) => ({
-      id: `TX-${2000 + i + ti}`,
-      type: ti % 3 === 0 ? 'Retiro' : 'Deposito',
-      amount: Math.floor(200 + Math.random() * 800),
-      date: `2024-05-${10 + ti}`,
-      status: 'Completado',
-      method: 'USDT',
-      networkId: `TRX-${Math.random().toString(36).toUpperCase().substring(0, 10)}`
-    }))
-  };
-});
+const INITIAL_PROFILES: Profile[] = []; // Default empty, will fetch from API
 
 const OperationalCenter: React.FC = () => {
   // --- API DATA ---
@@ -187,10 +153,66 @@ const OperationalCenter: React.FC = () => {
 
   // Forms State
   const [distForm, setDistForm] = useState<{ nombre: string; deportes: number[]; descripcion: string; activo: boolean }>({ nombre: '', deportes: [], descripcion: '', activo: true });
-  const [casaForm, setCasaForm] = useState({ nombre: '', url_backoffice: '', perfiles_minimos_req: 3, capital_objetivo: 5000, activo: true });
+  const [casaForm, setCasaForm] = useState({ 
+    nombre: '', 
+    url_backoffice: '', 
+    puede_tener_agencia: false, 
+    activo: true,
+    perfiles_minimos_req: 3,
+    capital_total: 0
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // --- STATE ---
   const [profiles, setProfiles] = useState<Profile[]>(INITIAL_PROFILES);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+
+  // Fetch profiles effect
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        setIsLoadingProfiles(true);
+        const res = await perfilesService.getAll();
+        const mappedProfiles: Profile[] = res.results.map((p: any) => ({
+          id: p.nombre_usuario, // Using username as ID for compatibility
+          username: p.nombre_usuario,
+          // Check if p.usuario_username exists or map from backend
+          owner: 'Agencia', // Or p.agencia_nombre 
+          ownerId: p.agencia.toString(),
+          bookie: p.casa_nombre || 'Unknown',
+          backofficeUrl: p.url_acceso_backoffice || '',
+          ecosystem: p.distribuidora_nombre || 'ALTENAR', // Now uses backend data
+          sport: 'Fútbol',
+          playerType: p.tipo_jugador as PlayerType,
+          avgStake: p.stake_promedio || 0,
+          opsThisWeek: p.ops_semanales || 0,
+          avgOpsPerWeek: 0,
+          balance: p.saldo_real || 0,
+          notes: p.preferencias || '',
+          city: p.ubicacion_ciudad || 'Unknown',
+          ip: p.ip_operativa,
+          preferences: p.preferencias,
+          schedule: Array.from({ length: 31 }).map(() => 'A'), // Default Active
+          agencyId: p.agencia.toString(),
+          finances: []
+        }));
+        setProfiles(mappedProfiles);
+      } catch (err) {
+        console.error("Failed to load profiles", err);
+      } finally {
+        setIsLoadingProfiles(false);
+      }
+    };
+    fetchProfiles();
+  }, []);
+
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
   const [expandedEcos, setExpandedEcos] = useState<string[]>([]);
@@ -296,7 +318,9 @@ const OperationalCenter: React.FC = () => {
 
     // 2. Alerta de falta de perfiles activos por casa
     ECOSISTEMAS.forEach(eco => {
-      eco.houses.forEach(house => {
+      const houses = eco.casas || eco.houses || [];
+      houses.forEach((h: any) => {
+        const house = typeof h === 'string' ? h : h.nombre;
         const activeInHouse = profiles.filter(p => p.bookie === house && p.schedule[todayIdx] === 'A').length;
         if (activeInHouse < opConfig.minProfilesPerHouse) {
           alerts.push({
@@ -378,7 +402,17 @@ const OperationalCenter: React.FC = () => {
   // --- CRUD HANDLERS ---
 
   const resetDistForm = () => setDistForm({ nombre: '', deportes: [], descripcion: '', activo: true });
-  const resetCasaForm = () => setCasaForm({ nombre: '', url_backoffice: '', perfiles_minimos_req: 3, capital_objetivo: 5000, activo: true });
+  const resetCasaForm = () => {
+    setCasaForm({ 
+      nombre: '', 
+      url_backoffice: '', 
+      puede_tener_agencia: false, 
+      activo: true,
+      perfiles_minimos_req: 3,
+      capital_total: 0
+    });
+    setFormErrors({});
+  };
 
   const handleOpenCreateDist = () => {
     setEditingDist(null);
@@ -422,40 +456,120 @@ const OperationalCenter: React.FC = () => {
   };
 
   const handleOpenCreateCasa = (distId: number) => {
+    console.log('Creando casa para distribuidora ID:', distId); // Debug
+    if (!distId) {
+      alert('✗ Error: ID de distribuidora inválido');
+      return;
+    }
     setCreatingHouseForDistId(distId);
     setEditingCasa(null);
     resetCasaForm();
     setIsCasaModalOpen(true);
   };
 
-  const handleOpenEditCasa = (casa: any) => {
-    setEditingCasa(casa);
-    setCasaForm({
-      nombre: casa.nombre,
-      url_backoffice: casa.url_backoffice || '',
-      perfiles_minimos_req: casa.perfiles_minimos_req || 3,
-      capital_objetivo: casa.capital_total ? parseFloat(casa.capital_total) : 5000,
-      activo: casa.activo
-    });
-    setIsCasaModalOpen(true);
+  const handleOpenEditCasa = async (casa: any) => {
+    try {
+      setIsLoadingAction(true);
+      // Traer detalle actualizado para asegurar booleans correctos
+      const detail = casa.id_casa ? await casasService.getById(casa.id_casa) : casa;
+
+      setEditingCasa(detail);
+      setCasaForm({
+        nombre: detail.nombre,
+        url_backoffice: detail.url_backoffice || '',
+        puede_tener_agencia: normalizeBool(detail.puede_tener_agencia ?? detail.permite_agencia ?? detail.permite_agencias ?? detail.puede_agencias),
+        activo: normalizeBool(detail.activo),
+        perfiles_minimos_req: detail.perfiles_minimos_req ?? detail.perfiles_minimos ?? 3,
+        capital_total: detail.capital_total ? parseFloat(detail.capital_total) : 0
+      });
+      setFormErrors({});
+      setIsCasaModalOpen(true);
+    } catch (e) {
+      console.error('Error cargando casa para edición', e);
+      alert('No se pudo cargar la casa para edición');
+    } finally {
+      setIsLoadingAction(false);
+    }
+  };
+
+  const validateCasaForm = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!casaForm.nombre.trim()) {
+      errors.nombre = 'El nombre es requerido';
+    }
+    
+    if (!casaForm.url_backoffice.trim()) {
+      errors.url_backoffice = 'La URL del backoffice es requerida';
+    } else {
+      try {
+        new URL(casaForm.url_backoffice);
+      } catch {
+        errors.url_backoffice = 'URL inválida (debe incluir http:// o https://)';
+      }
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmitCasa = async () => {
+    if (!validateCasaForm()) return;
+    
+    // Validación adicional para creación
+    if (!editingCasa && !creatingHouseForDistId) {
+      alert('✗ Error: No se ha seleccionado una distribuidora');
+      return;
+    }
+    
     setIsLoadingAction(true);
     try {
-      const payload: any = { ...casaForm };
+      const payload: any = {
+        nombre: casaForm.nombre,
+        url_backoffice: casaForm.url_backoffice,
+        puede_tener_agencia: casaForm.puede_tener_agencia,
+        activo: casaForm.activo
+      };
+      
       if (editingCasa) {
+        payload.perfiles_minimos_req = casaForm.perfiles_minimos_req;
+        console.log('Actualizando casa:', editingCasa.id_casa, 'Payload:', payload);
         await updateCasa(editingCasa.id_casa, payload);
+        setToast({ message: 'Casa de apuestas actualizada', type: 'success' });
       } else {
+        // Opción 1: Distribuidora en el body
         payload.distribuidora = creatingHouseForDistId;
+        console.log('Creando casa - Payload completo:', JSON.stringify(payload, null, 2));
         await createCasa(payload);
+        setToast({ message: 'Casa de apuestas creada', type: 'success' });
       }
+      
       setIsCasaModalOpen(false);
       resetCasaForm();
-      // Refetch distribuidoras to update tree
       await refetchDistribuidoras();
-    } catch (e) {
-      alert("Error al guardar casa de apuestas");
+    } catch (e: any) {
+      console.error('Error completo:', e);
+      console.error('Response data:', e.response?.data);
+      
+      // Mejor extracción de mensajes de error del backend
+      let errorMsg = 'Error desconocido';
+      
+      if (e.response?.data) {
+        // Si es un objeto con múltiples campos de error
+        if (typeof e.response.data === 'object' && !e.response.data.message) {
+          const errors = Object.entries(e.response.data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join('\n');
+          errorMsg = errors || JSON.stringify(e.response.data);
+        } else {
+          // Si tiene un campo message directo
+          errorMsg = e.response.data.message || e.response.data.detail || JSON.stringify(e.response.data);
+        }
+      } else if (e.message) {
+        errorMsg = e.message;
+      }
+      
+      alert(`✗ Error al guardar casa de apuestas:\n\n${errorMsg}`);
     } finally {
       setIsLoadingAction(false);
     }
@@ -474,8 +588,28 @@ const OperationalCenter: React.FC = () => {
     }
   };
 
+  // Normaliza booleanos desde backend; retorna null si no existe
+  const normalizeBool = (value: any): boolean | null => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === 'string') {
+      const v = value.toLowerCase();
+      return v === 'true' || v === '1' || v === 'yes' || v === 'si';
+    }
+    return value === true || value === 1;
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-[#050505] text-[#e1e1e1] overflow-hidden font-sans selection:bg-[#00ff88]/30">
+
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 animate-in fade-in-50 duration-200 drop-shadow-2xl">
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${toast.type === 'success' ? 'bg-[#0f2018] border-[#00ff88]/30 text-[#bfffe0]' : 'bg-[#2a0d0d] border-[#ff4d4d]/30 text-[#ffd7d7]'}`}>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${toast.type === 'success' ? 'bg-[#00ff88]' : 'bg-[#ff4d4d]'}`} />
+            <span className="text-sm font-semibold whitespace-nowrap">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-xs text-[#888] hover:text-white transition-colors">Cerrar</button>
+          </div>
+        </div>
+      )}
 
       {/* 1. HEADER - Title bar (always sticky) */}
       <header className="px-4 sm:px-6 py-3 sm:py-4 bg-[#0d0d0d] border-b border-[#1f1f1f] flex-shrink-0 z-30 shadow-2xl">
@@ -487,7 +621,7 @@ const OperationalCenter: React.FC = () => {
             <div>
               <h1 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight leading-none italic">Centro Operativo</h1>
               <p className="text-[9px] sm:text-[10px] text-[#666666] font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] mt-1 sm:mt-1.5 flex items-center gap-2">
-                <div className="size-1.5 sm:size-2 rounded-full bg-[#00ff88] animate-pulse"></div> Network Live
+                <span className="size-1.5 sm:size-2 rounded-full bg-[#00ff88] animate-pulse inline-block"></span> Network Live
               </p>
             </div>
           </div>
@@ -498,7 +632,7 @@ const OperationalCenter: React.FC = () => {
             <button onClick={handleAudit} disabled={isAuditing} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-[#00ff88] text-black text-[10px] sm:text-[11px] font-black uppercase rounded-lg sm:rounded-xl hover:bg-[#00e67a] shadow-xl shadow-[#00ff88]/10 transition-all active:scale-95 disabled:opacity-50">
               {isAuditing ? <RefreshCw size={14} className="animate-spin" /> : <Shield size={14} />}
               <span className="hidden xs:inline">Auditar Red</span>
-            </button>
+            </button>``
           </div>
         </div>
       </header>
@@ -524,8 +658,6 @@ const OperationalCenter: React.FC = () => {
           <HeaderMetric label="Descanso" value={stats.restingCount} sub="Flota B" color="warning" icon={<PauseCircle size={16} />} />
         </div>
 
-
-        {/* CENTRO DE ALERTAS TÁCTICAS (FUNCIONAL) */}
         {showAlerts && (
           <section className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-3xl overflow-hidden shadow-2xl" id="co-alertas">
             <div className="px-6 py-4 border-b border-[#1f1f1f] bg-white/[0.02] flex justify-between items-center">
@@ -610,7 +742,7 @@ const OperationalCenter: React.FC = () => {
             <div className="px-8 py-6 border-b border-[#1f1f1f] flex flex-col xl:flex-row xl:items-center justify-between gap-6">
               <div className="flex items-center gap-3">
                 <Globe size={22} className="text-[#00ff88]" />
-                <h2 className="text-sm font-black text-white uppercase tracking-widest">Explorador de Flota</h2>
+                <h2 className="text-sm font-black text-white uppercase tracking-widest">Distribuidoras De Datos</h2>
               </div>
 
               <Button onClick={handleOpenCreateDist} variant="primary" icon={<Plus size={14} />}>
@@ -673,8 +805,19 @@ const OperationalCenter: React.FC = () => {
                           const isStringHouse = typeof house === 'string';
                           const houseName = isStringHouse ? house : house.nombre;
                           const houseId = isStringHouse ? house : house.id_casa;
+                          // Badge for agencies permission (default false)
+                          const allowAgencies = normalizeBool(
+                            !isStringHouse && (
+                              house.puede_tener_agencia ??
+                              house.permite_agencia ??
+                              house.permite_agencias ??
+                              house.puede_agencias ??
+                              house.allow_agencies ??
+                              house.allows_agencies
+                            )
+                          );
 
-                          const houseProfiles = ecoProfiles.filter(p => p.bookie === houseName);
+                          const houseProfiles = ecoProfiles.filter(p => p.bookie?.toLowerCase() === houseName?.toLowerCase());
                           const hKey = `${ecoId}_${houseName}`;
                           const houseIsExpanded = expandedHouses.includes(hKey);
                           if (houseProfiles.length === 0 && search) return null;
@@ -688,7 +831,20 @@ const OperationalCenter: React.FC = () => {
                                 <div className="flex items-center gap-4">
                                   <Shield size={16} className="text-[#00ff88]" />
                                   <div>
-                                    <span className="text-sm font-black text-white uppercase tracking-widest">{houseName}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-black text-white uppercase tracking-widest">{houseName}</span>
+                                      {allowAgencies === null ? (
+                                        <span className="px-2 py-0.5 text-[9px] rounded-full border flex items-center gap-1 shadow-sm bg-[#111] border-[#333] text-[#aaa]">
+                                          <Building2 size={10} className="text-[#777]" />
+                                          Sin dato
+                                        </span>
+                                      ) : (
+                                        <span className={`px-2 py-0.5 text-[9px] rounded-full border flex items-center gap-1 shadow-sm ${allowAgencies ? 'bg-[#0f2018] border-[#00ff88]/40 text-[#bfffe0]' : 'bg-[#1c0f0f] border-[#ff4d4d]/40 text-[#ffd7d7]'}`}>
+                                          <Building2 size={10} className={allowAgencies ? 'text-[#00ff88]' : 'text-[#ff8080]'} />
+                                          {allowAgencies ? 'Permite agencias' : 'No permite agencias'}
+                                        </span>
+                                      )}
+                                    </div>
                                     <p className="text-[9px] text-[#666666] font-bold">Total: {houseProfiles.length} perfiles</p>
                                   </div>
                                 </div>
@@ -1059,8 +1215,8 @@ const OperationalCenter: React.FC = () => {
                       key={deporte.id_deporte}
                       onClick={() => toggleSportSelection(deporte.id_deporte)}
                       className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all border ${isSelected
-                          ? 'bg-[#00ff88] text-black border-[#00ff88] shadow-[0_0_10px_rgba(0,255,136,0.3)]'
-                          : 'bg-[#111] text-[#666] border-[#333] hover:text-white hover:border-[#666]'
+                        ? 'bg-[#00ff88] text-black border-[#00ff88] shadow-[0_0_10px_rgba(0,255,136,0.3)]'
+                        : 'bg-[#111] text-[#666] border-[#333] hover:text-white hover:border-[#666]'
                         }`}
                     >
                       {deporte.nombre}
@@ -1100,50 +1256,119 @@ const OperationalCenter: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isCasaModalOpen} onClose={() => setIsCasaModalOpen(false)} title={editingCasa ? "Editar Casa de Apuestas" : "Nueva Casa de Apuestas"}>
-        <div className="space-y-4">
-          <Input
-            label="Nombre Casa"
-            value={casaForm.nombre}
-            onChange={(e) => setCasaForm({ ...casaForm, nombre: e.target.value })}
-            placeholder="Ej. ECUABET"
-          />
-          <Input
-            label="URL Backoffice"
-            value={casaForm.url_backoffice}
-            onChange={(e) => setCasaForm({ ...casaForm, url_backoffice: e.target.value })}
-            placeholder="https://admin.ecuabet.com"
-          />
-          <div className="grid grid-cols-2 gap-4">
+      <Modal isOpen={isCasaModalOpen} onClose={() => { setIsCasaModalOpen(false); resetCasaForm(); }} title={editingCasa ? "✏️ Editar Casa de Apuestas" : "➕ Nueva Casa de Apuestas"}>
+        <div className="space-y-5 animate-in fade-in-50 duration-200">
+          {/* Nombre */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Store size={14} className="text-[#00ff88]" />
+              <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider">Nombre de la Casa</label>
+            </div>
             <Input
-              label="Perfiles Mínimos"
-              type="number"
-              value={casaForm.perfiles_minimos_req}
-              onChange={(e) => setCasaForm({ ...casaForm, perfiles_minimos_req: parseInt(e.target.value) })}
+              value={casaForm.nombre}
+              onChange={(e) => { setCasaForm({ ...casaForm, nombre: e.target.value }); setFormErrors({ ...formErrors, nombre: '' }); }}
+              placeholder="Ej. ECUABET"
+              aria-label="Nombre de la casa de apuestas"
+              className={`transition-all ${formErrors.nombre ? 'border-red-500 animate-shake' : ''}`}
             />
-            <Input
-              label="Capital Objetivo ($)"
-              type="number"
-              value={casaForm.capital_objetivo}
-              onChange={(e) => setCasaForm({ ...casaForm, capital_objetivo: parseFloat(e.target.value) })}
-            />
+            {formErrors.nombre && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12} /> {formErrors.nombre}</p>}
           </div>
 
+          {/* URL Backoffice */}
           <div>
-            <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-2 block">Estado</label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setCasaForm({ ...casaForm, activo: !casaForm.activo })}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${casaForm.activo ? 'bg-[#00ff88]/20 text-[#00ff88] border border-[#00ff88]/30' : 'bg-[#111] text-[#666] border border-[#333]'}`}
-              >
-                {casaForm.activo ? 'ACTIVO' : 'INACTIVO'}
-              </button>
+            <div className="flex items-center gap-2 mb-2">
+              <ExternalLink size={14} className="text-[#00ff88]" />
+              <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider">URL del Backoffice</label>
+            </div>
+            <Input
+              value={casaForm.url_backoffice}
+              onChange={(e) => { setCasaForm({ ...casaForm, url_backoffice: e.target.value }); setFormErrors({ ...formErrors, url_backoffice: '' }); }}
+              placeholder="https://admin.ejemplo.com"
+              aria-label="URL del backoffice"
+              className={`transition-all ${formErrors.url_backoffice ? 'border-red-500 animate-shake' : ''}`}
+            />
+            {formErrors.url_backoffice && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12} /> {formErrors.url_backoffice}</p>}
+          </div>
+
+          {/* Opciones de configuración */}
+          <div className="space-y-3 p-4 bg-[#0a0a0a] rounded-lg border border-[#222]">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings size={14} className="text-[#666]" />
+              <span className="text-[10px] font-bold text-[#666] uppercase tracking-wider">Configuración</span>
+            </div>
+            
+            {/* Puede tener agencia */}
+            <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg hover:bg-[#151515] transition-all cursor-pointer group" onClick={() => setCasaForm({ ...casaForm, puede_tener_agencia: !casaForm.puede_tener_agencia })}>
+              <div className="flex items-center gap-3">
+                <Building2 size={16} className={`transition-all ${casaForm.puede_tener_agencia ? 'text-[#00ff88]' : 'text-[#666]'}`} />
+                <div>
+                  <p className="text-sm font-semibold text-white">¿Puede tener agencias?</p>
+                  <p className="text-xs text-[#666]">{casaForm.puede_tener_agencia ? 'Sí, permite crear agencias' : 'No permite agencias'}</p>
+                </div>
+              </div>
+              <div className={`w-12 h-6 rounded-full transition-all relative ${casaForm.puede_tener_agencia ? 'bg-[#00ff88]' : 'bg-[#333]'} group-hover:scale-105`}>
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${casaForm.puede_tener_agencia ? 'right-1' : 'left-1'}`} />
+              </div>
+            </div>
+
+            {/* Estado activo */}
+            <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg hover:bg-[#151515] transition-all cursor-pointer group" onClick={() => setCasaForm({ ...casaForm, activo: !casaForm.activo })}>
+              <div className="flex items-center gap-3">
+                <Zap size={16} className={`transition-all ${casaForm.activo ? 'text-[#00ff88]' : 'text-[#666]'}`} />
+                <div>
+                  <p className="text-sm font-semibold text-white">Estado</p>
+                  <p className="text-xs text-[#666]">{casaForm.activo ? 'Casa activa' : 'Casa inactiva'}</p>
+                </div>
+              </div>
+              <div className={`w-12 h-6 rounded-full transition-all relative ${casaForm.activo ? 'bg-[#00ff88]' : 'bg-[#333]'} group-hover:scale-105`}>
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${casaForm.activo ? 'right-1' : 'left-1'}`} />
+              </div>
             </div>
           </div>
 
-          <div className="pt-4 flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setIsCasaModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmitCasa} isLoading={isLoadingAction} icon={<Save size={14} />}>Guardar</Button>
+          {/* Perfiles mínimos (solo en edición) */}
+          {editingCasa && (
+            <div className="p-4 bg-[#0a0a0a] rounded-lg border border-[#222]">
+              <div className="flex items-center gap-2 mb-3">
+                <UserCheck size={14} className="text-[#666]" />
+                <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider">Perfiles Mínimos Requeridos</label>
+              </div>
+              <Input
+                type="number"
+                value={casaForm.perfiles_minimos_req}
+                onChange={(e) => setCasaForm({ ...casaForm, perfiles_minimos_req: parseInt(e.target.value) || 0 })}
+                placeholder="3"
+                min="0"
+                aria-label="Perfiles mínimos requeridos"
+              />
+              {editingCasa && casaForm.capital_total > 0 && (
+                <div className="mt-3 p-3 bg-[#111] rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#666]">Capital Total</span>
+                    <span className="text-sm font-bold text-[#00ff88]">${casaForm.capital_total.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="pt-4 flex justify-end gap-3 border-t border-[#222]">
+            <Button 
+              variant="secondary" 
+              onClick={() => { setIsCasaModalOpen(false); resetCasaForm(); }}
+              className="hover:scale-105 transition-transform"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSubmitCasa} 
+              isLoading={isLoadingAction} 
+              icon={isLoadingAction ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              className="hover:scale-105 transition-transform bg-gradient-to-r from-[#00ff88] to-[#00cc70] hover:from-[#00cc70] hover:to-[#00ff88]"
+            >
+              {editingCasa ? 'Actualizar' : 'Crear Casa'}
+            </Button>
           </div>
         </div>
       </Modal>

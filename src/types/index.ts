@@ -84,6 +84,7 @@ export interface Agencia {
     perfiles_totales: number;
     url_backoffice?: string;
     activo: boolean;
+    tiene_arrastre?: boolean;
     fecha_registro: string;
 }
 
@@ -96,6 +97,7 @@ export interface CreateAgenciaData {
     rake_porcentaje?: number;
     url_backoffice?: string;
     activo?: boolean;
+    tiene_arrastre?: boolean;
 }
 
 export interface UpdateAgenciaData extends Partial<CreateAgenciaData> { }
@@ -107,7 +109,7 @@ export interface UpdateAgenciaData extends Partial<CreateAgenciaData> { }
 export interface Ecosistema {
     id: string;
     name: string;
-    houses: string[];
+    houses: any[]; // houses with full data when available
 }
 
 /**

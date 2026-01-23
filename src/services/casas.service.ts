@@ -22,6 +22,8 @@ export interface CreateCasaData {
     distribuidora: number;
     nombre: string;
     url_backoffice?: string;
+    puede_tener_agencia?: boolean;
+    tiene_arrastre?: boolean;
     perfiles_minimos_req?: number;
     activo?: boolean;
 }
