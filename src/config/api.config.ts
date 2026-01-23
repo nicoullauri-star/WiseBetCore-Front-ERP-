@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     BITACORAS: '/api/gestion-operativa/bitacoras-mando/',
     DEPORTES: '/api/gestion-operativa/deportes/',
     PERSONAS: '/api/gestion-operativa/personas/',
+    OBJETIVOS_PERFILES: '/api/gestion-operativa/objetivos-perfiles/',
 } as const;
 
 // Token keys

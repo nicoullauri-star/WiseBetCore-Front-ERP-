@@ -103,6 +103,66 @@ export interface CreateAgenciaData {
 export interface UpdateAgenciaData extends Partial<CreateAgenciaData> { }
 
 // ============================================================================
+// OBJETIVOS DE CREACIÓN DE PERFILES
+// ============================================================================
+
+export interface ObjetivoPerfiles {
+    id_objetivo: number;
+    agencia: number;
+    agencia_nombre: string;
+    cantidad_objetivo: number;
+    cantidad_completada: number;
+    plazo_dias: number;
+    fecha_inicio: string;
+    fecha_limite: string;
+    estado_inicial_perfiles: 'ACTIVO' | 'INACTIVO';
+    completado: boolean;
+    perfiles_restantes: number;
+    porcentaje_completado: number;
+    fecha_creacion: string;
+    fecha_actualizacion: string;
+}
+
+export interface CreateObjetivoData {
+    agencia: number;
+    cantidad_objetivo: number;
+    plazo_dias: number;
+    estado_inicial_perfiles: 'ACTIVO' | 'INACTIVO';
+}
+
+export interface CalendarioEvento {
+    id: string;
+    tipo: 'fecha_limite' | 'perfil_creado';
+    titulo: string;
+    agencia_id: number;
+    agencia_nombre: string;
+    fecha: string;
+    hora?: string;
+    cantidad_objetivo?: number;
+    cantidad_completada?: number;
+    perfiles_restantes?: number;
+    completado?: boolean;
+    nombre_usuario?: string;
+    tipo_jugador?: string;
+    color: 'red' | 'green' | 'blue';
+}
+
+export interface PerfilCreadoResumen {
+    id_perfil: number;
+    nombre_usuario: string;
+    fecha_creacion: string | null;
+    tipo_jugador: string;
+    nivel_cuenta: string;
+    activo: boolean;
+}
+
+export interface HistorialAgencia {
+    agencia_id: number;
+    objetivos: ObjetivoPerfiles[];
+    perfiles_creados: PerfilCreadoResumen[];
+}
+
+// ============================================================================
 // ECOSYSTEM TYPE (Para compatibilidad con código existente)
 // ============================================================================
 

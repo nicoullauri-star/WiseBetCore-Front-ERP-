@@ -15,7 +15,10 @@ import {
    ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { useAgencias, useCasas } from '../hooks';
+import { useObjetivosPendientes, useObjetivosAgencia, useCalendarioEventos } from '../hooks/useObjetivos';
+import { CalendarioObjetivos } from '../components/CalendarioObjetivos';
 import { agenciasService } from '../services';
+import { objetivosService } from '../services/objetivos.service';
 import { personasService, type Persona } from '../services/personas.service';
 import { perfilesService } from '../services/perfiles.service';
 import type { Agencia, CreateAgenciaData } from '../types';
@@ -66,8 +69,14 @@ const MetricCard = ({ label, value, sub, color = 'white', tooltip }: any) => (
 const OperationalNetwork: React.FC = () => {
    const navigate = useNavigate();
    const [searchParams] = useSearchParams();
-   const [activeTab, setActiveTab] = useState<'agencias' | 'perfiles' | 'movimientos' | 'usuarios'>('agencias');
+   const [activeTab, setActiveTab] = useState<'agencias' | 'perfiles' | 'movimientos' | 'usuarios' | 'calendario'>('agencias');
    const [selectedAgencyForDetails, setSelectedAgencyForDetails] = useState<Agencia | null>(null);
+   const [showNuevoObjetivoDrawer, setShowNuevoObjetivoDrawer] = useState(false);
+   const [nuevoObjetivoDrawerData, setNuevoObjetivoDrawerData] = useState({
+      cantidad_objetivo: 5,
+      plazo_dias: 30,
+      estado_inicial_perfiles: 'ACTIVO' as 'ACTIVO' | 'INACTIVO'
+   });
    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
    // Auto-close toast
@@ -77,9 +86,22 @@ const OperationalNetwork: React.FC = () => {
       return () => clearTimeout(timer);
    }, [toast]);
 
+   // Reset formulario cuando se cierra el drawer
+   useEffect(() => {
+      if (!selectedAgencyForDetails) {
+         setShowNuevoObjetivoDrawer(false);
+         setNuevoObjetivoDrawerData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
+      }
+   }, [selectedAgencyForDetails]);
+
    // --- HOOKS ---
    const { agencias, isLoading: loadingAgencias, createAgencia, deleteAgencia, refetch: refetchAgencias } = useAgencias();
    const { casas, isLoading: loadingCasas } = useCasas();
+   const { objetivos: objetivosPendientes, isLoading: loadingObjetivos, refetch: refetchObjetivos } = useObjetivosPendientes();
+   const { historial: historialObjetivos, isLoading: loadingHistorial, refetch: refetchHistorial } = useObjetivosAgencia(
+      selectedAgencyForDetails?.id_agencia || null
+   );
+   const { eventos: eventosCalendario, isLoading: loadingEventos, refetch: refetchEventos } = useCalendarioEventos();
 
    const [search, setSearch] = useState('');
    const [selectedAgencyId, setSelectedAgencyId] = useState<number | null>(null);
@@ -133,34 +155,178 @@ const OperationalNetwork: React.FC = () => {
       activo: true
    });
 
+   // State para planificación de perfiles (opcional al crear agencia)
+   const [definirObjetivo, setDefinirObjetivo] = useState(false);
+   const [objetivoData, setObjetivoData] = useState({
+      cantidad_objetivo: 5,
+      plazo_dias: 30,
+      estado_inicial_perfiles: 'ACTIVO' as 'ACTIVO' | 'INACTIVO'
+   });
+
    const handleSaveAgency = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!formData.nombre || !formData.responsable || formData.casa_madre === 0) {
-         alert("Complete los campos obligatorios");
+      
+      // Validaciones mejoradas con mensajes específicos
+      if (!formData.nombre.trim()) {
+         setToast({ message: '⚠️ El nombre de la agencia es obligatorio', type: 'error' });
+         return;
+      }
+      if (formData.nombre.trim().length < 3) {
+         setToast({ message: '⚠️ El nombre debe tener al menos 3 caracteres', type: 'error' });
+         return;
+      }
+      if (!formData.responsable.trim()) {
+         setToast({ message: '⚠️ El responsable es obligatorio', type: 'error' });
+         return;
+      }
+      if (formData.casa_madre === 0) {
+         setToast({ message: '⚠️ Debe seleccionar una casa madre', type: 'error' });
+         return;
+      }
+      if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+         setToast({ message: '⚠️ El email no es válido', type: 'error' });
+         return;
+      }
+      if (formData.rake_porcentaje < 0 || formData.rake_porcentaje > 100) {
+         setToast({ message: '⚠️ El porcentaje de rake debe estar entre 0 y 100', type: 'error' });
          return;
       }
 
       setIsSubmitting(true);
       try {
+         let agenciaCreada: Agencia | null = null;
+
          if (editingAgency) {
-            // Update mode
+            // Update mode - NO se crea objetivo en edición
             await agenciasService.update(editingAgency.id_agencia, formData);
             setToast({ message: '✨ Agencia actualizada exitosamente', type: 'success' });
          } else {
             // Create mode
-            await createAgencia(formData);
-            setToast({ message: '🎉 Agencia creada exitosamente', type: 'success' });
+            agenciaCreada = await createAgencia(formData);
+            
+            // Si se definió objetivo, validar y crearlo (2do request)
+            if (definirObjetivo && agenciaCreada) {
+               // Validar datos del objetivo
+               if (objetivoData.cantidad_objetivo <= 0) {
+                  setToast({ message: '⚠️ Agencia creada. Objetivo inválido: cantidad debe ser mayor a 0', type: 'info' });
+                  await refetchAgencias();
+                  setIsModalOpen(false);
+                  setEditingAgency(null);
+                  setFormData({
+                     nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', tiene_arrastre: false, activo: true
+                  });
+                  setDefinirObjetivo(false);
+                  setObjetivoData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
+                  setIsSubmitting(false);
+                  return;
+               }
+               if (objetivoData.plazo_dias <= 0) {
+                  setToast({ message: '⚠️ Agencia creada. Objetivo inválido: plazo debe ser mayor a 0', type: 'info' });
+                  await refetchAgencias();
+                  setIsModalOpen(false);
+                  setEditingAgency(null);
+                  setFormData({
+                     nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', tiene_arrastre: false, activo: true
+                  });
+                  setDefinirObjetivo(false);
+                  setObjetivoData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
+                  setIsSubmitting(false);
+                  return;
+               }
+               
+               try {
+                  await objetivosService.create({
+                     agencia: agenciaCreada.id_agencia,
+                     ...objetivoData
+                  });
+                  // Refrescar objetivos pendientes para actualizar el panel
+                  await Promise.all([
+                     refetchObjetivos(),
+                     refetchEventos()
+                  ]);
+                  setToast({ 
+                     message: `🎉 Agencia creada con objetivo: ${objetivoData.cantidad_objetivo} perfiles en ${objetivoData.plazo_dias} días`, 
+                     type: 'success' 
+                  });
+               } catch (objError) {
+                  console.error('Error creando objetivo:', objError);
+                  setToast({ 
+                     message: '⚠️ Agencia creada pero error al crear objetivo', 
+                     type: 'info' 
+                  });
+               }
+            } else {
+               setToast({ message: '🎉 Agencia creada exitosamente', type: 'success' });
+            }
          }
+
+         // Refetch antes de cerrar
+         await refetchAgencias();
+         
          setIsModalOpen(false);
          setEditingAgency(null);
-         refetchAgencias();
+         
          // Reset form
          setFormData({
             nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', tiene_arrastre: false, activo: true
          });
+         setDefinirObjetivo(false);
+         setObjetivoData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
       } catch (error) {
          console.error(error);
          setToast({ message: '❌ Error al guardar la agencia', type: 'error' });
+      } finally {
+         setIsSubmitting(false);
+      }
+   };
+
+   // Función para crear objetivo desde el drawer
+   const handleCrearObjetivoDrawer = async () => {
+      if (!selectedAgencyForDetails) return;
+      
+      // Validaciones mejoradas
+      if (nuevoObjetivoDrawerData.cantidad_objetivo <= 0) {
+         setToast({ message: '⚠️ La cantidad debe ser mayor a 0', type: 'error' });
+         return;
+      }
+      if (nuevoObjetivoDrawerData.cantidad_objetivo > 1000) {
+         setToast({ message: '⚠️ La cantidad no puede superar 1000 perfiles', type: 'error' });
+         return;
+      }
+      if (nuevoObjetivoDrawerData.plazo_dias <= 0) {
+         setToast({ message: '⚠️ El plazo debe ser mayor a 0 días', type: 'error' });
+         return;
+      }
+      if (nuevoObjetivoDrawerData.plazo_dias > 365) {
+         setToast({ message: '⚠️ El plazo no puede superar 365 días', type: 'error' });
+         return;
+      }
+
+      setIsSubmitting(true);
+      try {
+         await objetivosService.create({
+            agencia: selectedAgencyForDetails.id_agencia,
+            ...nuevoObjetivoDrawerData
+         });
+         
+         // Refrescar ambos: historial del drawer Y panel de pendientes
+         await Promise.all([
+            refetchHistorial(),
+            refetchObjetivos(),
+            refetchEventos()
+         ]);
+         
+         setToast({ 
+            message: `✅ Objetivo creado: ${nuevoObjetivoDrawerData.cantidad_objetivo} perfiles en ${nuevoObjetivoDrawerData.plazo_dias} días`, 
+            type: 'success' 
+         });
+         
+         // Reset form y cerrar
+         setShowNuevoObjetivoDrawer(false);
+         setNuevoObjetivoDrawerData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
+      } catch (error) {
+         console.error('Error creando objetivo desde drawer:', error);
+         setToast({ message: '❌ Error al crear objetivo', type: 'error' });
       } finally {
          setIsSubmitting(false);
       }
@@ -250,6 +416,8 @@ const OperationalNetwork: React.FC = () => {
       setFormData({
          nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', tiene_arrastre: false, activo: true
       });
+      setDefinirObjetivo(false);
+      setObjetivoData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
       setIsModalOpen(true);
    };
 
@@ -266,6 +434,8 @@ const OperationalNetwork: React.FC = () => {
          tiene_arrastre: agency.tiene_arrastre ?? false,
          activo: agency.activo
       });
+      // NO mostrar sección de objetivo en modo edición
+      setDefinirObjetivo(false);
       setIsModalOpen(true);
    };
 
@@ -274,6 +444,7 @@ const OperationalNetwork: React.FC = () => {
       { id: 'perfiles', label: 'Perfiles', icon: <BadgeCheck size={18} /> },
       { id: 'movimientos', label: 'Movimientos', icon: <Activity size={18} /> },
       { id: 'usuarios', label: 'Usuarios', icon: <Users size={18} /> },
+      { id: 'calendario', label: 'Calendario', icon: <Calendar size={18} /> },
    ];
 
    return (
@@ -432,12 +603,22 @@ const OperationalNetwork: React.FC = () => {
                               <button
                                  onClick={async (e) => {
                                     e.stopPropagation();
-                                    if (window.confirm('¿Eliminar agencia?')) {
+                                    const confirmacion = window.confirm(
+                                       `⚠️ ¿Está seguro de eliminar la agencia "${agency.nombre}"?\n\n` +
+                                       `Esta acción no se puede deshacer y se eliminarán:\n` +
+                                       `• ${agency.perfiles_totales || 0} perfiles asociados\n` +
+                                       `• Todos los objetivos vinculados\n` +
+                                       `• Historial de movimientos\n\n` +
+                                       `Presione OK para confirmar la eliminación.`
+                                    );
+                                    
+                                    if (confirmacion) {
                                        try {
                                           await deleteAgencia(agency.id_agencia);
-                                          alert("Agencia eliminada");
+                                          setToast({ message: '✅ Agencia eliminada exitosamente', type: 'success' });
                                        } catch (err) {
-                                          alert('Error al eliminar');
+                                          setToast({ message: '❌ Error al eliminar la agencia', type: 'error' });
+                                          console.error('Error al eliminar:', err);
                                        }
                                     }
                                  }}
@@ -467,7 +648,7 @@ const OperationalNetwork: React.FC = () => {
                </section>
 
                {/* 2. PANELES INTERACTIVOS */}
-               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+               <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 lg:gap-6 max-w-7xl">
                   <InteractivePanel
                      title="Agencias más ganadoras"
                      subtitle="Top Profit Casa"
@@ -497,17 +678,42 @@ const OperationalNetwork: React.FC = () => {
                   />
                   <InteractivePanel
                      title="Perfiles pendientes"
-                     subtitle="Urgente por crear"
-                     icon={<UserPlus size={16} />}
-                     color="warning"
-                     isFilter
-                     isActive={activeFilter === 'gaps'}
-                     data={stats.profileGaps.slice(0, 3).map(p => ({
-                        id: p.id,
-                        val: `Faltan: ${p.minRequiredProfiles - p.profiles.length}`,
-                        sub: 'Sugerido: Próxima semana'
-                     }))}
-                     onClick={() => setActiveFilter(activeFilter === 'gaps' ? 'all' : 'gaps')}
+                     subtitle={loadingObjetivos ? "cargando..." : objetivosPendientes.length === 0 ? "sin objetivos" : `${objetivosPendientes.length} objetivos en curso`}
+                     icon={loadingObjetivos ? <AlertCircle size={16} className="animate-pulse" /> : objetivosPendientes.length === 0 ? <CheckCircle2 size={16} className="text-green-500" /> : <AlertCircle size={16} />}
+                     color={objetivosPendientes.length === 0 ? "success" : "red"}
+                     isFilter={false}
+                     isActive={false}
+                     data={objetivosPendientes.length === 0 
+                        ? [{ id: 'empty', val: 'No hay objetivos pendientes', sub: '✨ Todos los objetivos completados' }]
+                        : objetivosPendientes.slice(0, 3).map(obj => {
+                           // Calcular días restantes hasta la fecha límite
+                           const fechaLimite = new Date(obj.fecha_limite);
+                           const hoy = new Date();
+                           const diasRestantes = Math.ceil((fechaLimite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+                           
+                           // Determinar color según urgencia
+                           let urgenciaColor = 'text-green-600';
+                           if (diasRestantes < 7) urgenciaColor = 'text-red-600 font-semibold';
+                           else if (diasRestantes < 15) urgenciaColor = 'text-amber-600';
+                           
+                           return {
+                              id: obj.id_objetivo,
+                              val: (
+                                 <div className="flex flex-col gap-1 w-full">
+                                    <span className="font-medium text-sm">Faltan: {obj.perfiles_restantes} perfiles</span>
+                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                       <div 
+                                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" 
+                                          style={{ width: `${obj.porcentaje_completado}%` }}
+                                       />
+                                    </div>
+                                 </div>
+                              ),
+                              sub: `${obj.agencia_nombre} • ${obj.cantidad_completada}/${obj.cantidad_objetivo} • ${diasRestantes > 0 ? `${diasRestantes}d` : 'Vencido'}`
+                           };
+                        })
+                     }
+                     onClick={() => { }}
                   />
                </section>
 
@@ -655,6 +861,10 @@ const OperationalNetwork: React.FC = () => {
                      </table>
                   </div>
                </section>
+            </div>
+         ) : activeTab === 'calendario' ? (
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-6 pb-32 sm:pb-40">
+               <CalendarioObjetivos eventos={eventosCalendario} loading={loadingEventos} />
             </div>
          ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-20 opacity-40">
@@ -905,6 +1115,101 @@ const OperationalNetwork: React.FC = () => {
                               </button>
                            </div>
                         </div>
+
+                        {/* Planificación de Perfiles (solo en creación) */}
+                        {!editingAgency && (
+                           <div className="col-span-1 sm:col-span-2 space-y-4 mt-2">
+                              <div className="flex items-center justify-between p-4 bg-[#0a0b0e] border border-white/10 rounded-xl">
+                                 <div className="flex items-center gap-3">
+                                    <Calendar className="text-primary" size={20} />
+                                    <div>
+                                       <p className="text-xs font-black text-white uppercase tracking-wider">Planificación de Perfiles</p>
+                                       <p className="text-[9px] text-slate-400 font-bold">Establecer objetivo de creación (opcional)</p>
+                                    </div>
+                                 </div>
+                                 <button
+                                    type="button"
+                                    onClick={() => setDefinirObjetivo(!definirObjetivo)}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${definirObjetivo ? 'bg-primary' : 'bg-slate-700'}`}
+                                 >
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${definirObjetivo ? 'translate-x-5' : 'translate-x-1'}`} />
+                                 </button>
+                              </div>
+
+                              {definirObjetivo && (
+                                 <div className="p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/20 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="flex items-start gap-2">
+                                       <Info size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                                       <p className="text-[9px] text-slate-300 leading-relaxed">
+                                          Define cuántos perfiles se deben crear y en qué plazo. Esto aparecerá en el panel de "Perfiles pendientes".
+                                       </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                       <div className="space-y-1.5">
+                                          <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Cantidad Objetivo</label>
+                                          <input
+                                             type="number"
+                                             min={1}
+                                             max={1000}
+                                             value={objetivoData.cantidad_objetivo}
+                                             onChange={e => {
+                                                const value = parseInt(e.target.value) || 1;
+                                                setObjetivoData({ ...objetivoData, cantidad_objetivo: Math.min(Math.max(value, 1), 1000) });
+                                             }}
+                                             className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all"
+                                             placeholder="Ej: 5"
+                                          />
+                                          <p className="text-[8px] text-slate-500 ml-1">Perfiles a crear (1-1000)</p>
+                                       </div>
+
+                                       <div className="space-y-1.5">
+                                          <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Plazo (días)</label>
+                                          <input
+                                             type="number"
+                                             min={1}
+                                             max={365}
+                                             value={objetivoData.plazo_dias}
+                                             onChange={e => {
+                                                const value = parseInt(e.target.value) || 1;
+                                                setObjetivoData({ ...objetivoData, plazo_dias: Math.min(Math.max(value, 1), 365) });
+                                             }}
+                                             className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all"
+                                             placeholder="Ej: 30"
+                                          />
+                                          <p className="text-[8px] text-slate-500 ml-1">Días para completar (1-365)</p>
+                                       </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                       <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Estado Inicial de Perfiles</label>
+                                       <div className="relative">
+                                          <select
+                                             value={objetivoData.estado_inicial_perfiles}
+                                             onChange={e => setObjetivoData({ ...objetivoData, estado_inicial_perfiles: e.target.value as 'ACTIVO' | 'INACTIVO' })}
+                                             className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all appearance-none cursor-pointer"
+                                          >
+                                             <option value="ACTIVO">Activo</option>
+                                             <option value="INACTIVO">Inactivo</option>
+                                          </select>
+                                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                                       </div>
+                                       <p className="text-[8px] text-slate-500 ml-1">Estado que tendrán los perfiles al crearse</p>
+                                    </div>
+
+                                    <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-start gap-2">
+                                       <Clock size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                                       <div>
+                                          <p className="text-[9px] font-bold text-green-400">Objetivo establecido</p>
+                                          <p className="text-[9px] text-slate-300 mt-0.5">
+                                             Crear <span className="font-black text-white">{objetivoData.cantidad_objetivo} perfiles</span> en <span className="font-black text-white">{objetivoData.plazo_dias} días</span>
+                                          </p>
+                                       </div>
+                                    </div>
+                                 </div>
+                              )}
+                           </div>
+                        )}
                      </form>
                   </div>
 
@@ -1220,6 +1525,194 @@ const OperationalNetwork: React.FC = () => {
                               <p className="text-xs font-bold text-white">{new Date((selectedAgencyForDetails as any).fecha_registro).toLocaleString('es-ES')}</p>
                            </div>
                         )}
+                     </div>
+
+                     {/* NUEVA SECCIÓN: Objetivos de Creación de Perfiles */}
+                     <div className="mt-6 p-5 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-2">
+                              <div className="p-2 bg-blue-500/20 rounded-xl">
+                                 <Calendar size={18} className="text-blue-400" />
+                              </div>
+                              <div>
+                                 <h3 className="text-sm font-black text-white uppercase tracking-wider">Objetivos de Perfiles</h3>
+                                 <p className="text-[9px] text-slate-400 font-bold">Planificación de creación</p>
+                              </div>
+                           </div>
+                           <button
+                              onClick={() => setShowNuevoObjetivoDrawer(!showNuevoObjetivoDrawer)}
+                              className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                           >
+                              <Plus size={14} />
+                              Nuevo objetivo
+                           </button>
+                        </div>
+
+                        {/* Formulario para nuevo objetivo (colapsable) */}
+                        {showNuevoObjetivoDrawer && (
+                           <div className="mb-4 p-4 bg-black/30 border border-blue-500/20 rounded-xl space-y-3 animate-in slide-in-from-top-2 duration-200">
+                              <div className="grid grid-cols-2 gap-3">
+                                 <div>
+                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                       Cantidad de Perfiles
+                                    </label>
+                                    <input
+                                       type="number"
+                                       min="1"
+                                       max="1000"
+                                       value={nuevoObjetivoDrawerData.cantidad_objetivo}
+                                       onChange={(e) => {
+                                          const value = parseInt(e.target.value) || 1;
+                                          setNuevoObjetivoDrawerData(prev => ({ 
+                                             ...prev, 
+                                             cantidad_objetivo: Math.min(Math.max(value, 1), 1000)
+                                          }));
+                                       }}
+                                       className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
+                                    />
+                                    <p className="text-[8px] text-slate-500 mt-1">Máximo 1000</p>
+                                 </div>
+                                 <div>
+                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                       Plazo (días)
+                                    </label>
+                                    <input
+                                       type="number"
+                                       min="1"
+                                       max="365"
+                                       value={nuevoObjetivoDrawerData.plazo_dias}
+                                       onChange={(e) => {
+                                          const value = parseInt(e.target.value) || 1;
+                                          setNuevoObjetivoDrawerData(prev => ({ 
+                                             ...prev, 
+                                             plazo_dias: Math.min(Math.max(value, 1), 365)
+                                          }));
+                                       }}
+                                       className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
+                                    />
+                                    <p className="text-[8px] text-slate-500 mt-1">Máximo 365 días</p>
+                                 </div>
+                              </div>
+                              <div>
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                    Estado Inicial de Perfiles
+                                 </label>
+                                 <select
+                                    value={nuevoObjetivoDrawerData.estado_inicial_perfiles}
+                                    onChange={(e) => setNuevoObjetivoDrawerData(prev => ({ 
+                                       ...prev, 
+                                       estado_inicial_perfiles: e.target.value as 'ACTIVO' | 'INACTIVO' 
+                                    }))}
+                                    className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
+                                 >
+                                    <option value="ACTIVO">Activo</option>
+                                    <option value="INACTIVO">Inactivo</option>
+                                 </select>
+                              </div>
+                              <div className="flex gap-2 pt-2">
+                                 <button
+                                    onClick={handleCrearObjetivoDrawer}
+                                    disabled={isSubmitting}
+                                    className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-500/50 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
+                                 >
+                                    {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                    {isSubmitting ? 'Creando...' : 'Crear Objetivo'}
+                                 </button>
+                                 <button
+                                    onClick={() => setShowNuevoObjetivoDrawer(false)}
+                                    className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 text-xs font-bold rounded-lg transition-all"
+                                 >
+                                    Cancelar
+                                 </button>
+                              </div>
+                           </div>
+                        )}
+
+                        {/* Lista de objetivos existentes */}
+                        <div className="space-y-2">
+                           {loadingHistorial ? (
+                              <div className="text-center py-6">
+                                 <RefreshCw size={20} className="animate-spin text-blue-400 mx-auto mb-2" />
+                                 <p className="text-xs text-slate-400 font-bold">Cargando objetivos...</p>
+                              </div>
+                           ) : historialObjetivos.length === 0 ? (
+                              <div className="text-center py-6">
+                                 <Calendar size={32} className="text-slate-600 mx-auto mb-2" />
+                                 <p className="text-xs text-slate-500 font-bold">No hay objetivos definidos</p>
+                                 <p className="text-[9px] text-slate-600 mt-1">Crea uno usando el botón de arriba</p>
+                              </div>
+                           ) : (
+                              historialObjetivos.map(obj => {
+                                 const fechaLimite = new Date(obj.fecha_limite);
+                                 const hoy = new Date();
+                                 const diasRestantes = Math.ceil((fechaLimite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+                                 
+                                 let statusColor = 'bg-green-500/20 text-green-400 border-green-500/30';
+                                 let statusText = 'En progreso';
+                                 
+                                 if (obj.perfiles_restantes === 0) {
+                                    statusColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                                    statusText = '✓ Completado';
+                                 } else if (diasRestantes < 0) {
+                                    statusColor = 'bg-red-500/20 text-red-400 border-red-500/30';
+                                    statusText = '⚠ Vencido';
+                                 } else if (diasRestantes < 7) {
+                                    statusColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+                                    statusText = '⏰ Urgente';
+                                 }
+                                 
+                                 return (
+                                    <div 
+                                       key={obj.id_objetivo}
+                                       className="p-3 bg-black/40 border border-white/5 rounded-xl hover:border-blue-500/30 transition-all"
+                                    >
+                                       <div className="flex items-start justify-between mb-2">
+                                          <div className="flex-1">
+                                             <div className="flex items-center gap-2 mb-1">
+                                                <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-md border ${statusColor}`}>
+                                                   {statusText}
+                                                </span>
+                                                <span className="text-[9px] text-slate-500 font-bold">
+                                                   #{obj.id_objetivo}
+                                                </span>
+                                             </div>
+                                             <p className="text-sm font-bold text-white">
+                                                Crear {obj.cantidad_objetivo} perfiles en {obj.plazo_dias} días
+                                             </p>
+                                          </div>
+                                       </div>
+                                       
+                                       {/* Barra de progreso */}
+                                       <div className="mb-2">
+                                          <div className="w-full bg-gray-800 rounded-full h-2">
+                                             <div 
+                                                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300" 
+                                                style={{ width: `${obj.porcentaje_completado}%` }}
+                                             />
+                                          </div>
+                                       </div>
+                                       
+                                       <div className="flex items-center justify-between text-[10px]">
+                                          <span className="text-slate-400 font-bold">
+                                             Progreso: {obj.cantidad_completada}/{obj.cantidad_objetivo} ({obj.porcentaje_completado.toFixed(0)}%)
+                                          </span>
+                                          <span className={diasRestantes < 7 ? 'text-red-400 font-bold' : 'text-slate-500 font-bold'}>
+                                             {diasRestantes > 0 ? `${diasRestantes}d restantes` : diasRestantes === 0 ? 'Vence hoy' : 'Vencido'}
+                                          </span>
+                                       </div>
+                                       
+                                       {obj.perfiles_restantes > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-white/5">
+                                             <p className="text-[9px] text-amber-400 font-bold">
+                                                ⚡ Faltan {obj.perfiles_restantes} perfiles por crear
+                                             </p>
+                                          </div>
+                                       )}
+                                    </div>
+                                 );
+                              })
+                           )}
+                        </div>
                      </div>
                   </div>
 

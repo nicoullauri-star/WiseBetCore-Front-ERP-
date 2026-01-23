@@ -6,6 +6,7 @@
 export { apiClient, tokenManager } from './api.client';
 export { distribuidorasService } from './distribuidoras.service';
 export { deportesService } from './deportes.service';
+export { objetivosService } from './objetivos.service';
 
 // Re-export types for convenience
 export type {

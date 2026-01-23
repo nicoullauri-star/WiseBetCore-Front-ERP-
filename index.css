@@ -34,3 +34,135 @@
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* FullCalendar Custom Styles */
+.fullcalendar-custom {
+  /* Variables de color para el tema oscuro */
+  --fc-border-color: rgba(255, 255, 255, 0.1);
+  --fc-button-bg-color: rgba(59, 130, 246, 0.2);
+  --fc-button-border-color: rgba(59, 130, 246, 0.4);
+  --fc-button-hover-bg-color: rgba(59, 130, 246, 0.3);
+  --fc-button-hover-border-color: rgba(59, 130, 246, 0.6);
+  --fc-button-active-bg-color: rgba(59, 130, 246, 0.4);
+  --fc-button-active-border-color: rgba(59, 130, 246, 0.8);
+  --fc-today-bg-color: rgba(59, 130, 246, 0.05);
+}
+
+.fullcalendar-custom .fc {
+  font-family: inherit;
+}
+
+.fullcalendar-custom .fc-theme-standard td,
+.fullcalendar-custom .fc-theme-standard th {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.fullcalendar-custom .fc-scrollgrid {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.fullcalendar-custom .fc-col-header-cell {
+  background: rgba(10, 10, 10, 0.8);
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 8px;
+}
+
+.fullcalendar-custom .fc-daygrid-day {
+  background: rgba(13, 13, 13, 0.5);
+}
+
+.fullcalendar-custom .fc-daygrid-day:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.fullcalendar-custom .fc-daygrid-day-number {
+  color: #e2e8f0;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px;
+}
+
+.fullcalendar-custom .fc-day-today {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.fullcalendar-custom .fc-day-today .fc-daygrid-day-number {
+  background: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.fullcalendar-custom .fc-toolbar-title {
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fullcalendar-custom .fc-button {
+  background: rgba(59, 130, 246, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: #93c5fd !important;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 8px 14px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s;
+}
+
+.fullcalendar-custom .fc-button:hover {
+  background: rgba(59, 130, 246, 0.25) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  color: #dbeafe !important;
+}
+
+.fullcalendar-custom .fc-button:active,
+.fullcalendar-custom .fc-button-active {
+  background: rgba(59, 130, 246, 0.35) !important;
+  border-color: rgba(59, 130, 246, 0.7) !important;
+  color: #ffffff !important;
+}
+
+.fullcalendar-custom .fc-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fullcalendar-custom .fc-event {
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.fullcalendar-custom .fc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  filter: brightness(1.1);
+}
+
+.fullcalendar-custom .fc-daygrid-event {
+  padding: 2px 4px;
+}
+
+.fullcalendar-custom .fc-daygrid-more-link {
+  color: #60a5fa;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.fullcalendar-custom .fc-daygrid-more-link:hover {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 4px;
+}
