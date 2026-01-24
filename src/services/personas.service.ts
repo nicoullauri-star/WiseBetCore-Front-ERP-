@@ -11,6 +11,8 @@ export interface Persona {
     segundo_apellido: string | null;
     tipo_documento: string;
     numero_documento: string;
+    correo_electronico?: string;
+    telefono?: string;
     nombre_completo?: string; // Generated on frontend or backed if property
 }
 

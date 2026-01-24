@@ -154,6 +154,9 @@ const OperationalNetwork: React.FC = () => {
       tiene_arrastre: false,
       activo: true
    });
+   const [selectedPersonaId, setSelectedPersonaId] = useState<number>(0);
+   const [tipoDocumento, setTipoDocumento] = useState<string>('');
+   const [numeroDocumento, setNumeroDocumento] = useState<string>('');
 
    // State para planificación de perfiles (opcional al crear agencia)
    const [definirObjetivo, setDefinirObjetivo] = useState(false);
@@ -175,8 +178,8 @@ const OperationalNetwork: React.FC = () => {
          setToast({ message: '⚠️ El nombre debe tener al menos 3 caracteres', type: 'error' });
          return;
       }
-      if (!formData.responsable.trim()) {
-         setToast({ message: '⚠️ El responsable es obligatorio', type: 'error' });
+      if (selectedPersonaId === 0) {
+         setToast({ message: '⚠️ Debe seleccionar un responsable', type: 'error' });
          return;
       }
       if (formData.casa_madre === 0) {
@@ -270,6 +273,9 @@ const OperationalNetwork: React.FC = () => {
          setFormData({
             nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', tiene_arrastre: false, activo: true
          });
+         setSelectedPersonaId(0);
+         setTipoDocumento('');
+         setNumeroDocumento('');
          setDefinirObjetivo(false);
          setObjetivoData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
       } catch (error) {
@@ -332,10 +338,12 @@ const OperationalNetwork: React.FC = () => {
       }
    };
 
-   // --- PROFILE CREATION STATE ---
-   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+   // --- SHARED PERSONAS STATE ---
    const [personas, setPersonas] = useState<Persona[]>([]);
    const [isPersonasLoading, setIsPersonasLoading] = useState(false);
+
+   // --- PROFILE CREATION STATE ---
+   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
    const [profileForm, setProfileForm] = useState({
       persona_id: 0,
       username: '', // e.g. user_pro_XX
@@ -352,6 +360,12 @@ const OperationalNetwork: React.FC = () => {
          setProfileForm(prev => ({ ...prev, username: `user_pro_${Math.floor(Math.random() * 1000)}`, password: Math.random().toString(36).slice(-8) }));
       }
    }, [isProfileModalOpen]);
+
+   useEffect(() => {
+      if (isModalOpen) {
+         loadPersonas();
+      }
+   }, [isModalOpen]);
 
    const loadPersonas = async () => {
       try {
@@ -416,6 +430,9 @@ const OperationalNetwork: React.FC = () => {
       setFormData({
          nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', tiene_arrastre: false, activo: true
       });
+      setSelectedPersonaId(0);
+      setTipoDocumento('');
+      setNumeroDocumento('');
       setDefinirObjetivo(false);
       setObjetivoData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
       setIsModalOpen(true);
@@ -434,6 +451,9 @@ const OperationalNetwork: React.FC = () => {
          tiene_arrastre: agency.tiene_arrastre ?? false,
          activo: agency.activo
       });
+      setSelectedPersonaId(0);
+      setTipoDocumento('');
+      setNumeroDocumento('');
       // NO mostrar sección de objetivo en modo edición
       setDefinirObjetivo(false);
       setIsModalOpen(true);
@@ -1016,22 +1036,46 @@ const OperationalNetwork: React.FC = () => {
                         </div>
                         <div className="space-y-1.5">
                            <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Dueño Responsable</label>
-                           <input
-                              type="text" required
-                              value={formData.responsable}
-                              onChange={e => setFormData({ ...formData, responsable: e.target.value })}
-                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
-                              placeholder="Nombre completo"
-                           />
+                           <div className="relative">
+                              <select
+                                 value={selectedPersonaId}
+                                 required
+                                 onChange={e => {
+                                    const personaId = Number(e.target.value);
+                                    setSelectedPersonaId(personaId);
+                                    const persona = personas.find(p => p.id_persona === personaId);
+                                    if (persona) {
+                                       const nombreCompleto = `${persona.primer_nombre}${persona.segundo_nombre ? ' ' + persona.segundo_nombre : ''} ${persona.primer_apellido}${persona.segundo_apellido ? ' ' + persona.segundo_apellido : ''}`.trim();
+                                       setFormData({ 
+                                          ...formData, 
+                                          responsable: nombreCompleto,
+                                          contacto: persona.telefono || '',
+                                          email: persona.correo_electronico || ''
+                                       });
+                                       setTipoDocumento(persona.tipo_documento || '');
+                                       setNumeroDocumento(persona.numero_documento || '');
+                                    }
+                                 }}
+                                 disabled={isPersonasLoading}
+                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                 <option value={0}>{isPersonasLoading ? 'Cargando personas...' : 'Seleccione una persona'}</option>
+                                 {personas.map(p => {
+                                    const nombreCompleto = `${p.primer_nombre}${p.segundo_nombre ? ' ' + p.segundo_nombre : ''} ${p.primer_apellido}${p.segundo_apellido ? ' ' + p.segundo_apellido : ''}`.trim();
+                                    return <option key={p.id_persona} value={p.id_persona}>{nombreCompleto}</option>;
+                                 })}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                           </div>
                         </div>
                         <div className="space-y-1.5">
                            <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Contacto / Teléfono</label>
                            <input
                               type="text"
                               value={formData.contacto}
-                              onChange={e => setFormData({ ...formData, contacto: e.target.value })}
-                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
-                              placeholder="+593 99..."
+                              readOnly
+                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                              placeholder="Se completa automáticamente"
                            />
                         </div>
                         <div className="space-y-1.5">
@@ -1039,9 +1083,29 @@ const OperationalNetwork: React.FC = () => {
                            <input
                               type="email"
                               value={formData.email}
-                              onChange={e => setFormData({ ...formData, email: e.target.value })}
-                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
-                              placeholder="agencia@ejemplo.com"
+                              readOnly
+                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                              placeholder="Se completa automáticamente"
+                           />
+                        </div>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Tipo de Documento</label>
+                           <input
+                              type="text"
+                              value={tipoDocumento}
+                              readOnly
+                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                              placeholder="Se completa automáticamente"
+                           />
+                        </div>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Número de Documento</label>
+                           <input
+                              type="text"
+                              value={numeroDocumento}
+                              readOnly
+                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                              placeholder="Se completa automáticamente"
                            />
                         </div>
                         <div className="space-y-1.5">
