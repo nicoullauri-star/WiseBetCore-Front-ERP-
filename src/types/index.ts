@@ -139,6 +139,11 @@ export interface PlanificarData {
     cantidad: number;
 }
 
+export interface MoverPlanificacionData {
+    fecha_origen: string;
+    fecha_destino: string;
+}
+
 export interface CalendarioEvento {
     id: string;
     tipo: 'fecha_limite' | 'perfil_creado' | 'planificado';
@@ -165,7 +170,14 @@ export interface CalendarioEvento {
 // ALERTAS DE PLANIFICACIÓN
 // ============================================================================
 
-export type AlertaTipo = 'SIN_PLANIFICAR' | 'HOY' | 'MAÑANA' | 'VENCIDO';
+export type AlertaTipo = 
+    | 'SIN_PLANIFICAR' 
+    | 'HOY' 
+    | 'MAÑANA' 
+    | 'VENCIDO'
+    | 'FALTAN_3_DIAS'
+    | 'FALTAN_2_DIAS'
+    | 'FALTAN_1_DIA';
 
 export interface AlertaPlanificacion {
     tipo: AlertaTipo;
@@ -173,11 +185,18 @@ export interface AlertaPlanificacion {
     agencia_id: number;
     agencia_nombre: string;
     mensaje: string;
+    // Campos para SIN_PLANIFICAR
+    faltantes_por_planificar?: number;
+    // Campos para HOY y MAÑANA
     fecha?: string;
     cantidad?: number;
     creados_hoy?: number;
     pendientes?: number;
-    faltantes_por_planificar?: number;
+    // Campos para FALTAN_X_DIAS y VENCIDO
+    fecha_limite?: string;
+    dias_restantes?: number;
+    dias_vencido?: number;
+    perfiles_restantes?: number;
 }
 
 export interface PerfilCreadoResumen {

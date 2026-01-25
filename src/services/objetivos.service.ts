@@ -11,6 +11,7 @@ import type {
     CalendarioEvento,
     HistorialAgencia,
     PlanificarData,
+    MoverPlanificacionData,
     AlertaPlanificacion
 } from '../types';
 
@@ -18,7 +19,7 @@ import type {
 // TYPES
 // ============================================================================
 
-export type { CreateObjetivoData, PlanificarData };
+export type { CreateObjetivoData, PlanificarData, MoverPlanificacionData };
 
 export interface GetObjetivosParams {
     agencia?: number;
@@ -142,5 +143,16 @@ export const objetivosService = {
     async getAlertas(): Promise<AlertaPlanificacion[]> {
         const endpoint = `${BASE_URL}/alertas/`;
         return apiClient.get<AlertaPlanificacion[]>(endpoint);
+    },
+
+    /**
+     * Mueve una planificación de una fecha a otra (drag & drop)
+     * @param objetivoId ID del objetivo
+     * @param data { fecha_origen: "YYYY-MM-DD", fecha_destino: "YYYY-MM-DD" }
+     * Si fecha_destino ya tiene planificación, las cantidades se SUMAN
+     */
+    async moverPlanificacion(objetivoId: number, data: MoverPlanificacionData): Promise<ObjetivoPerfiles> {
+        const endpoint = `${BASE_URL}/${objetivoId}/mover-planificacion/`;
+        return apiClient.patch<ObjetivoPerfiles>(endpoint, data);
     },
 };

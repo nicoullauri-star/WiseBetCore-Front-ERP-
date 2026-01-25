@@ -1,16 +1,17 @@
 /**
  * CalendarioObjetivos Component
  * Calendario visual de objetivos de creación de perfiles usando FullCalendar
- * Con filtro por agencia, rango de días coloreados y planificación
+ * Con filtro por agencia, rango de días coloreados, planificación y drag & drop
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { 
    Calendar, AlertCircle, CheckCircle2, Clock, X, TrendingUp, Target, 
-   Filter, ChevronDown, Building2, Plus, UserPlus, Minus
+   Filter, ChevronDown, Building2, Plus, UserPlus, Minus, GripVertical,
+   AlertTriangle, Zap, Move
 } from 'lucide-react';
 import type { CalendarioEvento, ObjetivoPerfiles } from '../types';
 import { objetivosService } from '../services/objetivos.service';
@@ -38,6 +39,41 @@ const formatDateISO = (date: Date): string => {
    return `${year}-${month}-${day}`;
 };
 
+// ============================================================================
+// SISTEMA DE COLORES POR URGENCIA
+// ============================================================================
+
+interface UrgenciaConfig {
+   bg: string;
+   border: string;
+   text: string;
+   pulso: boolean;
+   label: string;
+   icon: 'critical' | 'warning' | 'caution' | 'normal' | 'success' | 'expired';
+}
+
+const getUrgenciaConfig = (diasRestantes: number, completado: boolean): UrgenciaConfig => {
+   if (completado) {
+      return { bg: 'rgba(16, 185, 129, 0.2)', border: '#10b981', text: '#34d399', pulso: false, label: 'Completado', icon: 'success' };
+   }
+   if (diasRestantes < 0) {
+      return { bg: 'rgba(239, 68, 68, 0.3)', border: '#dc2626', text: '#f87171', pulso: true, label: 'Vencido', icon: 'expired' };
+   }
+   if (diasRestantes === 0) {
+      return { bg: 'rgba(239, 68, 68, 0.25)', border: '#ef4444', text: '#f87171', pulso: true, label: 'Hoy', icon: 'critical' };
+   }
+   if (diasRestantes === 1) {
+      return { bg: 'rgba(249, 115, 22, 0.2)', border: '#f97316', text: '#fb923c', pulso: true, label: 'Mañana', icon: 'warning' };
+   }
+   if (diasRestantes <= 2) {
+      return { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b', text: '#fbbf24', pulso: false, label: '2 días', icon: 'caution' };
+   }
+   if (diasRestantes <= 3) {
+      return { bg: 'rgba(234, 179, 8, 0.15)', border: '#eab308', text: '#facc15', pulso: false, label: '3 días', icon: 'caution' };
+   }
+   return { bg: 'rgba(59, 130, 246, 0.15)', border: '#3b82f6', text: '#60a5fa', pulso: false, label: 'Normal', icon: 'normal' };
+};
+
 // Paleta de colores para agencias (se asignan cíclicamente)
 const AGENCIA_COLORS = [
    { bg: 'rgba(59, 130, 246, 0.15)', border: '#3b82f6', text: '#60a5fa' },   // Azul
@@ -60,6 +96,7 @@ interface CalendarioObjetivosProps {
    objetivosPendientes?: ObjetivoPerfiles[];
    onCrearPerfilClick?: (agenciaId: number, objetivoId: number) => void;
    onRefresh?: () => void;
+   filtroAgenciaInicial?: number | null; // Permite filtrar por agencia al montar
 }
 
 interface AgenciaOption {
@@ -77,11 +114,26 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
    loading,
    objetivosPendientes = [],
    onCrearPerfilClick,
-   onRefresh
+   onRefresh,
+   filtroAgenciaInicial
 }) => {
    const [eventoSeleccionado, setEventoSeleccionado] = useState<CalendarioEvento | null>(null);
    const [agenciaFiltro, setAgenciaFiltro] = useState<number | 'todas'>('todas');
    const [isFilterOpen, setIsFilterOpen] = useState(false);
+   
+   // Estado para hover en celdas (para mostrar botón crear perfil)
+   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+   
+   // Estado para drag & drop
+   const [isDragging, setIsDragging] = useState(false);
+   const [dragInfo, setDragInfo] = useState<{ fecha: string; objetivoId: number } | null>(null);
+   
+   // Aplicar filtro inicial cuando cambia
+   React.useEffect(() => {
+      if (filtroAgenciaInicial !== undefined && filtroAgenciaInicial !== null) {
+         setAgenciaFiltro(filtroAgenciaInicial);
+      }
+   }, [filtroAgenciaInicial]);
    
    // Estado para modal de planificación
    const [modalPlanificacion, setModalPlanificacion] = useState<{
@@ -163,6 +215,68 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
       return esHoyOFuturo && estaDentroDelRango;
    };
 
+   /**
+    * Verifica si una fecha tiene planificación existente
+    */
+   const tienePlanificacion = useCallback((fechaStr: string): boolean => {
+      if (!objetivoSeleccionado) return false;
+      return fechaStr in (objetivoSeleccionado.planificacion || {});
+   }, [objetivoSeleccionado]);
+
+   /**
+    * Verifica si una fecha está dentro del rango del objetivo (sin importar si es pasada)
+    */
+   const estaDentroDelRango = useCallback((fechaStr: string): boolean => {
+      if (!objetivoSeleccionado) return false;
+      const fecha = new Date(fechaStr + 'T00:00:00');
+      const fechaInicio = new Date(objetivoSeleccionado.fecha_inicio + 'T00:00:00');
+      const fechaLimite = new Date(objetivoSeleccionado.fecha_limite + 'T00:00:00');
+      return fecha >= fechaInicio && fecha <= fechaLimite;
+   }, [objetivoSeleccionado]);
+
+   /**
+    * Handler para drag & drop de planificaciones
+    */
+   const handleEventDrop = useCallback(async (info: any) => {
+      const { event, oldEvent, revert } = info;
+      const extendedProps = event.extendedProps;
+      
+      // Solo permitir mover eventos de tipo planificado
+      if (extendedProps.tipo !== 'planificado') {
+         revert();
+         return;
+      }
+
+      const fechaOrigen = oldEvent.startStr;
+      const fechaDestino = event.startStr;
+      const objetivoId = extendedProps.objetivo_id;
+
+      // Validar que la nueva fecha sea válida
+      if (!esFechaPlanificable(fechaDestino)) {
+         setToast({ message: 'No se puede mover a esta fecha', type: 'error' });
+         revert();
+         return;
+      }
+
+      setIsSubmitting(true);
+      try {
+         await objetivosService.moverPlanificacion(objetivoId, {
+            fecha_origen: fechaOrigen,
+            fecha_destino: fechaDestino
+         });
+         setToast({ 
+            message: `Planificación movida al ${new Date(fechaDestino + 'T12:00:00').toLocaleDateString('es-EC', { day: 'numeric', month: 'short' })}`, 
+            type: 'success' 
+         });
+         onRefresh?.();
+      } catch (error: any) {
+         setToast({ message: error.message || 'Error al mover planificación', type: 'error' });
+         revert();
+      } finally {
+         setIsSubmitting(false);
+      }
+   }, [esFechaPlanificable, onRefresh]);
+
    // Generar eventos para FullCalendar (incluye eventos de rango para background)
    const fullCalendarEvents = useMemo(() => {
       if (!eventosFiltrados || eventosFiltrados.length === 0) return [];
@@ -175,34 +289,30 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
 
          const agenciaColor = getAgenciaColor(evento.agencia_id);
          
-         // Determinar colores según estado (para el marcador de fecha límite)
+         // Determinar colores según estado y urgencia (para el marcador de fecha límite)
          let backgroundColor = agenciaColor.border;
          let borderColor = agenciaColor.border;
+         let classNames: string[] = [];
          
          if (evento.tipo === 'fecha_limite') {
-            if (evento.completado) {
-               backgroundColor = '#10b981'; // Verde si completado
-               borderColor = '#059669';
-            } else {
-               const fechaLimite = new Date(evento.fecha);
-               fechaLimite.setHours(0, 0, 0, 0);
-               
-               if (fechaLimite < hoy) {
-                  backgroundColor = '#ef4444'; // Rojo si vencido
-                  borderColor = '#dc2626';
-               } else {
-                  // Calcular días restantes
-                  const diasRestantes = Math.ceil((fechaLimite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-                  if (diasRestantes <= 7) {
-                     backgroundColor = '#f59e0b'; // Ámbar si urgente (≤7 días)
-                     borderColor = '#d97706';
-                  }
-               }
+            const fechaLimite = new Date(evento.fecha);
+            fechaLimite.setHours(0, 0, 0, 0);
+            const diasRestantes = Math.ceil((fechaLimite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+            
+            const urgencia = getUrgenciaConfig(diasRestantes, evento.completado || false);
+            backgroundColor = urgencia.border;
+            borderColor = urgencia.border;
+            
+            if (urgencia.pulso) {
+               classNames.push('evento-urgente-pulso');
             }
          }
 
-         // Si es tipo planificado, renderizar SOLO el evento especial y salir
+         // Si es tipo planificado, renderizar evento DRAGGABLE
          if (evento.tipo === 'planificado') {
+            // Verificar si la fecha es válida para permitir drag
+            const fechaPlanificable = objetivoSeleccionado && esFechaPlanificable(evento.fecha);
+            
             calendarEvents.push({
                id: evento.id,
                title: `📅 ${evento.cantidad_planificada || 1} perfil(es)`,
@@ -210,13 +320,17 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
                backgroundColor: 'rgba(139, 92, 246, 0.3)', // Púrpura para planificados
                borderColor: '#8b5cf6',
                textColor: '#c4b5fd',
+               editable: fechaPlanificable, // Solo permite drag si la fecha es válida
+               startEditable: fechaPlanificable,
+               classNames: ['evento-planificado-draggable'],
                extendedProps: {
                   tipo: 'planificado',
                   agencia_id: evento.agencia_id,
                   agencia_nombre: evento.agencia_nombre,
                   cantidad_planificada: evento.cantidad_planificada,
                   cantidad_creada: evento.cantidad_creada,
-                  objetivo_id: evento.objetivo_id
+                  objetivo_id: evento.objetivo_id,
+                  isDraggable: fechaPlanificable
                }
             });
             return; // No procesar más para planificados
@@ -230,6 +344,8 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
             backgroundColor,
             borderColor,
             textColor: '#ffffff',
+            classNames,
+            editable: false, // No se pueden arrastrar
             extendedProps: {
                tipo: evento.tipo,
                agencia_id: evento.agencia_id,
@@ -279,7 +395,7 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
       });
 
       return calendarEvents;
-   }, [eventosFiltrados, agenciasConColor]);
+   }, [eventosFiltrados, agenciasConColor, objetivoSeleccionado, esFechaPlanificable]);
 
    // Renderizar el contenido del evento personalizado
    const renderEventContent = (eventInfo: any) => {
@@ -288,17 +404,28 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
       // No renderizar contenido para eventos de fondo
       if (extendedProps.isRangeEvent) return null;
 
-      // Evento planificado con botón crear perfil
+      // Evento planificado con botón crear perfil y indicador de drag
       if (extendedProps.tipo === 'planificado') {
          const yaCreados = extendedProps.cantidad_creada || 0;
          const planificados = extendedProps.cantidad_planificada || 1;
          const pendientes = planificados - yaCreados;
+         const isDraggable = extendedProps.isDraggable;
          
          return (
-            <div className="px-1.5 py-1 text-xs">
+            <div className="px-1.5 py-1 text-xs group relative">
+               {/* Indicador de drag */}
+               {isDraggable && (
+                  <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
+                     <GripVertical size={12} className="text-purple-400" />
+                  </div>
+               )}
+               
                <div className="flex items-center gap-1 font-bold text-purple-300">
                   <UserPlus size={12} />
                   <span>{planificados} perfil{planificados > 1 ? 'es' : ''}</span>
+                  {isDraggable && (
+                     <Move size={10} className="text-purple-400/60 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
                </div>
                <div className="text-[10px] text-purple-400/80 truncate">
                   {extendedProps.agencia_nombre}
@@ -309,7 +436,7 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
                         e.stopPropagation();
                         onCrearPerfilClick(extendedProps.agencia_id, extendedProps.objetivo_id);
                      }}
-                     className="mt-1 w-full px-2 py-1 text-[10px] font-bold bg-purple-500 hover:bg-purple-400 text-white rounded transition-all flex items-center justify-center gap-1"
+                     className="mt-1 w-full px-2 py-1 text-[10px] font-bold bg-purple-500 hover:bg-purple-400 text-white rounded transition-all flex items-center justify-center gap-1 shadow-lg shadow-purple-500/20"
                   >
                      <Plus size={10} />
                      Crear ({pendientes})
@@ -376,7 +503,7 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
                </div>
                <div>
                   <h2 className="text-lg font-black text-white uppercase tracking-wider">
-                     Calendario de Objetivos
+                     Calendario De Creacion De Perfiles Para Agencias
                   </h2>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                      {eventosFiltrados?.length || 0} eventos • Zona horaria: Ecuador (UTC-5)
@@ -441,24 +568,46 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
             </div>
          </div>
 
-         {/* Leyenda de colores */}
-         <div className="flex flex-wrap gap-3 mb-6 pb-4 border-b border-white/5">
-            <div className="flex items-center gap-2">
-               <div className="w-3 h-3 rounded bg-amber-500"></div>
-               <span className="text-xs text-slate-400 font-bold">Urgente (≤7d)</span>
+         {/* Leyenda de colores por urgencia */}
+         <div className="flex flex-wrap items-center gap-4 mb-6 pb-4 border-b border-white/5">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Urgencia:</span>
+            
+            {/* Estados */}
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
+               <span className="text-[10px] text-slate-400 font-bold">Vencido</span>
             </div>
-            <div className="flex items-center gap-2">
-               <div className="w-3 h-3 rounded bg-red-500"></div>
-               <span className="text-xs text-slate-400 font-bold">Vencido</span>
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+               <span className="text-[10px] text-slate-400 font-bold">Hoy</span>
             </div>
-            <div className="flex items-center gap-2">
-               <div className="w-3 h-3 rounded bg-green-500"></div>
-               <span className="text-xs text-slate-400 font-bold">Completado</span>
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>
+               <span className="text-[10px] text-slate-400 font-bold">Mañana</span>
             </div>
-            <div className="w-px h-4 bg-white/10 mx-2" />
-            <div className="flex items-center gap-2">
-               <div className="w-6 h-3 rounded bg-blue-500/20 border border-blue-500/30"></div>
-               <span className="text-xs text-slate-400 font-bold">Rango activo</span>
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+               <span className="text-[10px] text-slate-400 font-bold">2-3 días</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+               <span className="text-[10px] text-slate-400 font-bold">Normal</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+               <span className="text-[10px] text-slate-400 font-bold">Completado</span>
+            </div>
+            
+            <div className="w-px h-4 bg-white/10 mx-1" />
+            
+            {/* Otros indicadores */}
+            <div className="flex items-center gap-1.5">
+               <div className="w-5 h-2.5 rounded bg-purple-500/40 border border-purple-500/60"></div>
+               <span className="text-[10px] text-slate-400 font-bold">Planificado</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+               <div className="w-5 h-2.5 rounded bg-blue-500/20 border border-blue-500/30"></div>
+               <span className="text-[10px] text-slate-400 font-bold">Rango activo</span>
             </div>
          </div>
 
@@ -527,8 +676,51 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
                eventContent={renderEventContent}
                height="auto"
                firstDay={1} // Lunes como primer día
+               editable={true} // Habilitar edición general
+               droppable={false} // No permitir drops externos
+               eventDrop={handleEventDrop} // Handler para drag & drop
+               eventDragStart={() => setIsDragging(true)}
+               eventDragStop={() => setIsDragging(false)}
+               dayCellDidMount={(info) => {
+                  // Agregar clase para días dentro del rango
+                  const dateStr = formatDateISO(info.date);
+                  if (objetivoSeleccionado && estaDentroDelRango(dateStr)) {
+                     info.el.classList.add('dia-en-rango');
+                     if (esFechaPlanificable(dateStr) && !tienePlanificacion(dateStr)) {
+                        info.el.classList.add('dia-crear-disponible');
+                     }
+                  }
+               }}
+               dayCellContent={(arg) => {
+                  const dateStr = formatDateISO(arg.date);
+                  const puedeCrear = objetivoSeleccionado && 
+                     esFechaPlanificable(dateStr) && 
+                     !tienePlanificacion(dateStr) &&
+                     onCrearPerfilClick;
+                  
+                  return (
+                     <div className="w-full h-full relative group/celda">
+                        <span className="fc-daygrid-day-number">{arg.dayNumberText}</span>
+                        
+                        {/* Botón Crear Perfil - Solo visible en hover */}
+                        {puedeCrear && (
+                           <button
+                              onClick={(e) => {
+                                 e.stopPropagation();
+                                 onCrearPerfilClick(objetivoSeleccionado.agencia, objetivoSeleccionado.id_objetivo);
+                              }}
+                              className="absolute bottom-1 left-1/2 -translate-x-1/2 opacity-0 group-hover/celda:opacity-100 transition-all duration-200 px-2 py-1 text-[9px] font-bold bg-emerald-500 hover:bg-emerald-400 text-white rounded shadow-lg shadow-emerald-500/30 flex items-center gap-1 whitespace-nowrap z-10"
+                              title="Crear perfil directamente"
+                           >
+                              <UserPlus size={10} />
+                              Crear
+                           </button>
+                        )}
+                     </div>
+                  );
+               }}
                dateClick={(info) => {
-                  // Validar: objetivo seleccionado, faltantes disponibles, y fecha válida
+                  // Si no hay objetivo seleccionado o no quedan faltantes, no abrir modal de planificación
                   if (!objetivoSeleccionado || faltantesPorPlanificar <= 0) return;
                   if (!esFechaPlanificable(info.dateStr)) return;
 
@@ -554,6 +746,14 @@ export const CalendarioObjetivos: React.FC<CalendarioObjetivosProps> = ({
                eventDisplay="auto"
             />
          </div>
+
+         {/* Indicador de Drag activo */}
+         {isDragging && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-purple-500/90 text-white rounded-xl shadow-2xl flex items-center gap-2 animate-pulse">
+               <Move size={18} />
+               <span className="text-sm font-bold">Suelta en una fecha válida</span>
+            </div>
+         )}
 
          {(!eventosFiltrados || eventosFiltrados.length === 0) && !loading && (
             <div className="text-center py-12">

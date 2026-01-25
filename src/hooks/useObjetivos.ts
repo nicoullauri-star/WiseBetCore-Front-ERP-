@@ -22,9 +22,11 @@ export function useObjetivosPendientes() {
         try {
             const data = await objetivosService.getPendientes();
             setObjetivos(data);
+            return data; // Retornar datos para permitir await
         } catch (err) {
             setError('Error al cargar objetivos pendientes');
             console.error('Error fetching objetivos pendientes:', err);
+            throw err; // Re-throw para que Promise.all pueda manejarlo
         } finally {
             setIsLoading(false);
         }
@@ -157,10 +159,12 @@ export function useCalendarioEventos() {
         try {
             const data = await objetivosService.getCalendarioEventos();
             setEventos(Array.isArray(data) ? data : []);
+            return data; // Retornar datos para permitir await
         } catch (err) {
             setError('Error al cargar eventos del calendario');
             console.error('Error fetching calendario eventos:', err);
             setEventos([]); // Asegurar que siempre sea un array
+            throw err; // Re-throw para que Promise.all pueda manejarlo
         } finally {
             setIsLoading(false);
         }

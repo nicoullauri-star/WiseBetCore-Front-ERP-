@@ -166,3 +166,106 @@
   background: rgba(59, 130, 246, 0.1);
   border-radius: 4px;
 }
+
+/* ============================================================================
+   SISTEMA DE URGENCIA - Animaciones de pulso
+   ============================================================================ */
+
+@keyframes urgente-pulso {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    transform: scale(1.02);
+  }
+}
+
+.fullcalendar-custom .evento-urgente-pulso {
+  animation: urgente-pulso 2s ease-in-out infinite;
+}
+
+/* ============================================================================
+   DRAG & DROP - Estilos para eventos arrastrables
+   ============================================================================ */
+
+.fullcalendar-custom .evento-planificado-draggable {
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.fullcalendar-custom .evento-planificado-draggable:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.fullcalendar-custom .evento-planificado-draggable:active,
+.fullcalendar-custom .fc-event-dragging {
+  cursor: grabbing !important;
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.5);
+  z-index: 1000 !important;
+  opacity: 0.9;
+}
+
+/* Indicador visual cuando se arrastra sobre una celda válida */
+.fullcalendar-custom .fc-day-highlight {
+  background: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* ============================================================================
+   DÍAS DENTRO DEL RANGO - Estilos para hover y crear perfil
+   ============================================================================ */
+
+.fullcalendar-custom .dia-en-rango {
+  position: relative;
+}
+
+.fullcalendar-custom .dia-crear-disponible {
+  transition: all 0.2s ease;
+}
+
+.fullcalendar-custom .dia-crear-disponible:hover {
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+
+/* Asegurar que el contenido de la celda ocupe todo el espacio */
+.fullcalendar-custom .fc-daygrid-day-frame {
+  min-height: 100px;
+  position: relative;
+}
+
+.fullcalendar-custom .fc-daygrid-day-top {
+  position: relative;
+  z-index: 2;
+}
+
+/* Estilo para el número del día con hover */
+.fullcalendar-custom .dia-crear-disponible .fc-daygrid-day-number {
+  transition: all 0.2s ease;
+}
+
+.fullcalendar-custom .dia-crear-disponible:hover .fc-daygrid-day-number {
+  color: #34d399;
+}
+
+/* ============================================================================
+   ANIMACIONES GENERALES
+   ============================================================================ */
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Transición suave para todos los elementos del calendario */
+.fullcalendar-custom * {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}

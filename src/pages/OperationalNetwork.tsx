@@ -343,6 +343,9 @@ const OperationalNetwork: React.FC = () => {
    const [personas, setPersonas] = useState<Persona[]>([]);
    const [isPersonasLoading, setIsPersonasLoading] = useState(false);
 
+   // --- CALENDAR FILTER FROM ALERTS ---
+   const [calendarioFiltroAgencia, setCalendarioFiltroAgencia] = useState<number | null>(null);
+
    // --- PROFILE CREATION STATE ---
    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
    const [profileModalFromCalendar, setProfileModalFromCalendar] = useState(false);
@@ -420,13 +423,16 @@ const OperationalNetwork: React.FC = () => {
          };
 
          await perfilesService.create(payload);
-         alert("Perfil creado con éxito");
+         
+         // Refrescar datos ANTES de cerrar modal para asegurar actualización
+         await Promise.all([
+            refetchAgencias(),
+            refetchObjetivos(),
+            refetchEventos()
+         ]);
+         
          closeProfileModal();
-         // Refresh agency details if needed (mocked locally for now in some places)
-         // But we should refresh agencias to update counts
-         refetchAgencias();
-         refetchObjetivos();
-         refetchEventos();
+         setToast({ message: '✅ Perfil creado exitosamente', type: 'success' });
 
       } catch (err: any) {
          console.error(err);
@@ -477,7 +483,7 @@ const OperationalNetwork: React.FC = () => {
       { id: 'perfiles', label: 'Perfiles', icon: <BadgeCheck size={18} /> },
       { id: 'movimientos', label: 'Movimientos', icon: <Activity size={18} /> },
       { id: 'usuarios', label: 'Usuarios', icon: <Users size={18} /> },
-      { id: 'calendario', label: 'Calendario', icon: <Calendar size={18} /> },
+      { id: 'calendario', label: 'Planificador De Red Operativa', icon: <Calendar size={18} /> },
    ];
 
    return (
@@ -534,8 +540,9 @@ const OperationalNetwork: React.FC = () => {
                   {/* Centro de Alertas */}
                   <CentroAlertas
                      onPlanificarClick={(agenciaId, objetivoId) => {
+                        // Filtrar calendario por la agencia y cambiar a la pestaña calendario
+                        setCalendarioFiltroAgencia(agenciaId);
                         setActiveTab('calendario');
-                        // El calendario se encargará de la planificación
                      }}
                      onCrearPerfilClick={(agenciaId, objetivoId) => {
                         // Abrir modal de crear perfil con la agencia seleccionada (desde calendario/alertas)
@@ -916,6 +923,7 @@ const OperationalNetwork: React.FC = () => {
                   eventos={eventosCalendario} 
                   loading={loadingEventos}
                   objetivosPendientes={objetivosPendientes}
+                  filtroAgenciaInicial={calendarioFiltroAgencia}
                   onCrearPerfilClick={(agenciaId, objetivoId) => {
                      // Abrir modal de crear perfil con la agencia seleccionada (desde calendario)
                      setSelectedAgencyId(agenciaId);
@@ -925,6 +933,8 @@ const OperationalNetwork: React.FC = () => {
                   onRefresh={() => {
                      refetchEventos();
                      refetchObjetivos();
+                     // Limpiar el filtro después de refrescar para evitar que se quede "pegado"
+                     setCalendarioFiltroAgencia(null);
                   }}
                />
             </div>
