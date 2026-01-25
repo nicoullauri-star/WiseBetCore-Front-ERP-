@@ -17,6 +17,7 @@ import {
 import { useAgencias, useCasas } from '../hooks';
 import { useObjetivosPendientes, useObjetivosAgencia, useCalendarioEventos } from '../hooks/useObjetivos';
 import { CalendarioObjetivos } from '../components/CalendarioObjetivos';
+import { CentroAlertas } from '../components/CentroAlertas';
 import { agenciasService } from '../services';
 import { objetivosService } from '../services/objetivos.service';
 import { personasService, type Persona } from '../services/personas.service';
@@ -344,6 +345,7 @@ const OperationalNetwork: React.FC = () => {
 
    // --- PROFILE CREATION STATE ---
    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+   const [profileModalFromCalendar, setProfileModalFromCalendar] = useState(false);
    const [profileForm, setProfileForm] = useState({
       persona_id: 0,
       username: '', // e.g. user_pro_XX
@@ -379,6 +381,15 @@ const OperationalNetwork: React.FC = () => {
       }
    };
 
+   // Función para cerrar modal de perfil (limpia selectedAgencyId si viene del calendario)
+   const closeProfileModal = () => {
+      setIsProfileModalOpen(false);
+      if (profileModalFromCalendar) {
+         setSelectedAgencyId(null);
+         setProfileModalFromCalendar(false);
+      }
+   };
+
    const handleCreateProfile = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedAgency) return;
@@ -410,10 +421,12 @@ const OperationalNetwork: React.FC = () => {
 
          await perfilesService.create(payload);
          alert("Perfil creado con éxito");
-         setIsProfileModalOpen(false);
+         closeProfileModal();
          // Refresh agency details if needed (mocked locally for now in some places)
          // But we should refresh agencias to update counts
          refetchAgencias();
+         refetchObjetivos();
+         refetchEventos();
 
       } catch (err: any) {
          console.error(err);
@@ -517,6 +530,21 @@ const OperationalNetwork: React.FC = () => {
                         </button>
                      ))}
                   </div>
+                  
+                  {/* Centro de Alertas */}
+                  <CentroAlertas
+                     onPlanificarClick={(agenciaId, objetivoId) => {
+                        setActiveTab('calendario');
+                        // El calendario se encargará de la planificación
+                     }}
+                     onCrearPerfilClick={(agenciaId, objetivoId) => {
+                        // Abrir modal de crear perfil con la agencia seleccionada (desde calendario/alertas)
+                        setSelectedAgencyId(agenciaId);
+                        setProfileModalFromCalendar(true);
+                        setIsProfileModalOpen(true);
+                     }}
+                  />
+                  
                   <button
                      onClick={openCreateModal}
                      className="flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 bg-primary text-white text-[9px] sm:text-[10px] font-black uppercase rounded-lg sm:rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all active:scale-95 flex-shrink-0"
@@ -884,7 +912,21 @@ const OperationalNetwork: React.FC = () => {
             </div>
          ) : activeTab === 'calendario' ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-6 pb-32 sm:pb-40">
-               <CalendarioObjetivos eventos={eventosCalendario} loading={loadingEventos} />
+               <CalendarioObjetivos 
+                  eventos={eventosCalendario} 
+                  loading={loadingEventos}
+                  objetivosPendientes={objetivosPendientes}
+                  onCrearPerfilClick={(agenciaId, objetivoId) => {
+                     // Abrir modal de crear perfil con la agencia seleccionada (desde calendario)
+                     setSelectedAgencyId(agenciaId);
+                     setProfileModalFromCalendar(true);
+                     setIsProfileModalOpen(true);
+                  }}
+                  onRefresh={() => {
+                     refetchEventos();
+                     refetchObjetivos();
+                  }}
+               />
             </div>
          ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-20 opacity-40">
@@ -1294,7 +1336,7 @@ const OperationalNetwork: React.FC = () => {
          {/* --- MODAL (NUEVO PERFIL) --- */}
          {isProfileModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-               <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setIsProfileModalOpen(false)} />
+               <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={closeProfileModal} />
                <div className="relative w-full max-w-lg bg-[#0f1115] border border-white/10 rounded-[2rem] shadow-2xl shadow-primary/5 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-5 fade-in duration-300">
 
                   {/* Header */}
@@ -1308,7 +1350,7 @@ const OperationalNetwork: React.FC = () => {
                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pl-0.5">Asignando a: {selectedAgency?.nombre}</p>
                         </div>
                      </div>
-                     <button onClick={() => setIsProfileModalOpen(false)} className="p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
+                     <button onClick={closeProfileModal} className="p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
                         <X size={20} />
                      </button>
                   </div>
@@ -1424,7 +1466,7 @@ const OperationalNetwork: React.FC = () => {
 
                   {/* Footer */}
                   <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-[#0a0b0e]/30 shrink-0">
-                     <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                     <button type="button" onClick={closeProfileModal} className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
                         Cancelar
                      </button>
                      <button form="profile-form" type="submit" disabled={isSubmitting || profileForm.persona_id === 0} className="flex items-center gap-2 px-8 py-2.5 bg-primary text-white text-[10px] font-black uppercase rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">

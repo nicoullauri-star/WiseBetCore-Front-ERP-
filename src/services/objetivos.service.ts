@@ -9,14 +9,16 @@ import type {
     ObjetivoPerfiles, 
     CreateObjetivoData,
     CalendarioEvento,
-    HistorialAgencia
+    HistorialAgencia,
+    PlanificarData,
+    AlertaPlanificacion
 } from '../types';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type { CreateObjetivoData };
+export type { CreateObjetivoData, PlanificarData };
 
 export interface GetObjetivosParams {
     agencia?: number;
@@ -54,7 +56,7 @@ export const objetivosService = {
      * Obtiene un objetivo por ID
      */
     async getById(id: number): Promise<ObjetivoPerfiles> {
-        const endpoint = `${BASE_URL}${id}/`;
+        const endpoint = `${BASE_URL}/${id}/`;
         return apiClient.get<ObjetivoPerfiles>(endpoint);
     },
 
@@ -69,7 +71,7 @@ export const objetivosService = {
      * Actualiza un objetivo existente
      */
     async update(id: number, data: Partial<CreateObjetivoData>): Promise<ObjetivoPerfiles> {
-        const endpoint = `${BASE_URL}${id}/`;
+        const endpoint = `${BASE_URL}/${id}/`;
         return apiClient.patch<ObjetivoPerfiles>(endpoint, data);
     },
 
@@ -77,7 +79,7 @@ export const objetivosService = {
      * Elimina un objetivo
      */
     async delete(id: number): Promise<void> {
-        const endpoint = `${BASE_URL}${id}/`;
+        const endpoint = `${BASE_URL}/${id}/`;
         return apiClient.delete(endpoint);
     },
 
@@ -102,7 +104,7 @@ export const objetivosService = {
     },
 
     /**
-     * Obtiene eventos para calendario gráfico
+     * Obtiene eventos para calendario gráfico (incluye tipo 'planificado')
      */
     async getCalendarioEventos(): Promise<CalendarioEvento[]> {
         const endpoint = `${BASE_URL}/calendario_eventos/`;
@@ -117,5 +119,28 @@ export const objetivosService = {
         return apiClient.get<HistorialAgencia>(endpoint, {
             params: { agencia_id: agenciaId }
         });
+    },
+
+    // ========================================================================
+    // PLANIFICACIÓN
+    // ========================================================================
+
+    /**
+     * Asigna planificación a un objetivo (fecha + cantidad)
+     * @param objetivoId ID del objetivo
+     * @param data { fecha: "YYYY-MM-DD", cantidad: number }
+     */
+    async planificar(objetivoId: number, data: PlanificarData): Promise<ObjetivoPerfiles> {
+        const endpoint = `${BASE_URL}/${objetivoId}/planificar/`;
+        return apiClient.patch<ObjetivoPerfiles>(endpoint, data);
+    },
+
+    /**
+     * Obtiene alertas de planificación calculadas (timezone: America/Guayaquil)
+     * Tipos: SIN_PLANIFICAR, HOY, MAÑANA, VENCIDO
+     */
+    async getAlertas(): Promise<AlertaPlanificacion[]> {
+        const endpoint = `${BASE_URL}/alertas/`;
+        return apiClient.get<AlertaPlanificacion[]>(endpoint);
     },
 };

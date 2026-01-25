@@ -106,6 +106,9 @@ export interface UpdateAgenciaData extends Partial<CreateAgenciaData> { }
 // OBJETIVOS DE CREACIÓN DE PERFILES
 // ============================================================================
 
+/** Estructura del campo planificacion: {"YYYY-MM-DD": cantidad} */
+export type PlanificacionJSON = Record<string, number>;
+
 export interface ObjetivoPerfiles {
     id_objetivo: number;
     agencia: number;
@@ -119,6 +122,7 @@ export interface ObjetivoPerfiles {
     completado: boolean;
     perfiles_restantes: number;
     porcentaje_completado: number;
+    planificacion: PlanificacionJSON; // Nuevo campo
     fecha_creacion: string;
     fecha_actualizacion: string;
 }
@@ -130,13 +134,19 @@ export interface CreateObjetivoData {
     estado_inicial_perfiles: 'ACTIVO' | 'INACTIVO';
 }
 
+export interface PlanificarData {
+    fecha: string;
+    cantidad: number;
+}
+
 export interface CalendarioEvento {
     id: string;
-    tipo: 'fecha_limite' | 'perfil_creado';
+    tipo: 'fecha_limite' | 'perfil_creado' | 'planificado';
     titulo: string;
     agencia_id: number;
     agencia_nombre: string;
     fecha: string;
+    fecha_inicio?: string;
     hora?: string;
     cantidad_objetivo?: number;
     cantidad_completada?: number;
@@ -144,7 +154,30 @@ export interface CalendarioEvento {
     completado?: boolean;
     nombre_usuario?: string;
     tipo_jugador?: string;
-    color: 'red' | 'green' | 'blue';
+    // Campos para tipo 'planificado'
+    cantidad_planificada?: number;
+    cantidad_creada?: number;
+    objetivo_id?: number;
+    color: 'red' | 'green' | 'blue' | 'purple';
+}
+
+// ============================================================================
+// ALERTAS DE PLANIFICACIÓN
+// ============================================================================
+
+export type AlertaTipo = 'SIN_PLANIFICAR' | 'HOY' | 'MAÑANA' | 'VENCIDO';
+
+export interface AlertaPlanificacion {
+    tipo: AlertaTipo;
+    objetivo_id: number;
+    agencia_id: number;
+    agencia_nombre: string;
+    mensaje: string;
+    fecha?: string;
+    cantidad?: number;
+    creados_hoy?: number;
+    pendientes?: number;
+    faltantes_por_planificar?: number;
 }
 
 export interface PerfilCreadoResumen {
