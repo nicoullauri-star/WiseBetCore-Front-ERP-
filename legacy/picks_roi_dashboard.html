@@ -1,0 +1,347 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiseBetLab | Analytics Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #030303;
+            --panel: #0a0a0a;
+            --panel-card: #0e0e0e;
+            --border: rgba(255, 255, 255, 0.05);
+            --text: #ffffff;
+            --muted: #64748b;
+            --accentGreen: #b2cf3e; /* Color similar a la imagen */
+            --accentTurq: #06b6d4;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+            --radius-lg: 16px;
+            --radius-sm: 8px;
+            --transition: all 0.2s ease;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* LOGIN OVERLAY */
+        #login-overlay {
+            position: fixed; inset: 0; background: var(--bg); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-box {
+            width: 100%; max-width: 400px; padding: 40px; border-radius: var(--radius-lg);
+            background: var(--panel-card); border: 1px solid var(--border); text-align: center;
+        }
+
+        .container { max-width: 1440px; margin: 0 auto; padding: 32px; display: none; }
+        .is-logged .container { display: block; }
+        .is-logged #login-overlay { display: none; }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 32px; border: 1px solid var(--border); border-radius: var(--radius-lg);
+            margin-bottom: 32px; background: rgba(14,14,14,0.8); backdrop-filter: blur(10px);
+        }
+        
+        .logo h1 { font-size: 1.4rem; font-weight: 800; color: var(--accentGreen); letter-spacing: -1px; }
+
+        /* KPI GRID ESPECIAL (Estilo Imagen) */
+        .stats-grid-box {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px; border-radius: var(--radius-lg);
+            background: var(--panel-card); border: 1px solid var(--border); padding: 32px;
+            margin-bottom: 32px;
+        }
+        .stat-item {
+            display: flex; justify-content: space-between; border-bottom: 1px solid var(--border);
+            padding: 12px 0; align-items: center;
+        }
+        .stat-label { font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .stat-label::before { content: '✔'; color: var(--accentGreen); font-size: 14px; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; }
+
+        /* CHARTS MASONRY */
+        .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        .chart-card { background: var(--panel-card); border: 1px solid var(--border); padding: 24px; border-radius: var(--radius-lg); min-height: 350px; }
+        .chart-title { font-size: 14px; font-weight: 700; margin-bottom: 20px; color: #eee; }
+
+        /* FORMS & TABLES */
+        .card { background: var(--panel-card); border: 1px solid var(--border); padding: 24px; border-radius: var(--radius-lg); margin-bottom: 24px; }
+        .input, select, textarea { 
+            width: 100%; background: #000; border: 1px solid var(--border); border-radius: var(--radius-sm);
+            padding: 12px; color: #fff; margin-bottom: 12px;
+        }
+        .btn { padding: 12px 24px; border-radius: var(--radius-sm); font-weight: 700; cursor: pointer; border: none; }
+        .btn-primary { background: var(--accentGreen); color: #000; }
+        
+        .table-container { overflow-x: auto; background: #050505; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; padding: 12px; color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 10px; }
+        td { padding: 12px; border-bottom: 1px solid var(--border); }
+        
+        .pos { color: var(--accentGreen); }
+        .neg { color: var(--danger); }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; }
+        .badge-win { background: rgba(178, 207, 62, 0.1); color: var(--accentGreen); }
+
+        /* UTILS */
+        .flex { display: flex; gap: 12px; }
+        .justify-between { justify-content: space-between; }
+        .sidebar-layout { display: grid; grid-template-columns: 300px 1fr; gap: 32px; }
+    </style>
+</head>
+<body>
+
+<div id="login-overlay">
+    <div class="login-box">
+        <h1 style="color:var(--accentGreen); margin-bottom:8px;">WISEBETLAB</h1>
+        <p style="color:var(--muted); font-size:12px; margin-bottom:24px;">Tracker de ROI e Inteligencia Deportiva</p>
+        <input type="text" id="login-user" class="input" placeholder="Usuario">
+        <input type="password" id="login-pass" class="input" placeholder="Contraseña">
+        <button class="btn btn-primary w-full" style="width:100%" onclick="checkLogin()">Entrar al Dashboard</button>
+    </div>
+</div>
+
+<div class="container">
+    <header>
+        <div class="logo"><h1>WiseBetLab</h1></div>
+        <div class="actions flex">
+            <button class="btn btn-primary" onclick="processPastedText()">Procesar Texto</button>
+            <button class="btn" style="background:#222; color:#fff" onclick="logout()">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <div class="sidebar-layout">
+        <aside>
+            <div class="card">
+                <h3 style="font-size:12px; margin-bottom:16px; color:var(--muted)">CONFIGURACIÓN BANCA</h3>
+                <label style="font-size:10px; color:var(--muted)">BANCA INICIAL ($)</label>
+                <input type="number" id="cfg-bank" class="input" value="1000" onchange="recalculate()">
+                <label style="font-size:10px; color:var(--muted)">STAKE % (BASE 5/5)</label>
+                <input type="number" id="cfg-stake" class="input" value="1" step="0.1" onchange="recalculate()">
+                <label style="font-size:10px; color:var(--muted)">MODO GESTIÓN</label>
+                <select id="cfg-mode" class="input" onchange="recalculate()">
+                    <option value="A">Rolling (Interés)</option>
+                    <option value="B">Fijo (Base)</option>
+                </select>
+            </div>
+            <div class="card">
+                <h3 style="font-size:12px; margin-bottom:16px; color:var(--muted)">PEGADO DIARIO</h3>
+                <textarea id="raw-paste" class="input" style="height:200px" placeholder="Pega picks aquí..."></textarea>
+            </div>
+        </aside>
+
+        <main>
+            <!-- SECCIÓN ESTADÍSTICAS (ESTILO IMAGEN) -->
+            <div class="stats-grid-box">
+                <div class="stat-item"><span class="stat-label">Picks:</span> <span class="stat-value" id="s-total">0</span></div>
+                <div class="stat-item"><span class="stat-label">Picks / día:</span> <span class="stat-value" id="s-perday">0</span></div>
+                <div class="stat-item"><span class="stat-label">Ganados:</span> <span class="stat-value pos" id="s-wins">0</span></div>
+                <div class="stat-item"><span class="stat-label">Perdidos:</span> <span class="stat-value neg" id="s-losses">0</span></div>
+                <div class="stat-item"><span class="stat-label">U. apostadas:</span> <span class="stat-value" id="s-units-staked">0 u.</span></div>
+                <div class="stat-item"><span class="stat-label">U. ganadas:</span> <span class="stat-value" id="s-units-profit">0 u.</span></div>
+                <div class="stat-item"><span class="stat-label">Beneficio / día:</span> <span class="stat-value" id="s-profit-day">$0</span></div>
+                <div class="stat-item"><span class="stat-label">Beneficio / pick:</span> <span class="stat-value" id="s-profit-pick">$0</span></div>
+                <div class="stat-item"><span class="stat-label">Profit Factor:</span> <span class="stat-value" id="s-pf">0</span></div>
+                <div class="stat-item"><span class="stat-label">Yield:</span> <span class="stat-value" id="s-yield">0%</span></div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card"><div class="chart-title">Beneficio Acumulado</div><canvas id="c-equity"></canvas></div>
+                <div class="chart-card"><div class="chart-title">Beneficio / Semana</div><canvas id="c-weekly"></canvas></div>
+                <div class="chart-card"><div class="chart-title">Beneficio / Rango de cuotas</div><canvas id="c-range-profit"></canvas></div>
+                <div class="chart-card"><div class="chart-title">Hit Rate / Rango de cuotas</div><canvas id="c-range-hr"></canvas></div>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size:14px; margin-bottom:20px;">HISTORIAL RECIENTE</h3>
+                <div class="table-container">
+                    <table id="main-table">
+                        <thead><tr><th>Fecha</th><th>Evento</th><th>Bet</th><th>Cuota</th><th>Unit</th><th>Res</th><th>Profit</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    let picks = JSON.parse(localStorage.getItem('wisebet_picks') || '[]');
+    let charts = {};
+
+    function checkLogin() {
+        const u = document.getElementById('login-user').value;
+        const p = document.getElementById('login-pass').value;
+        if (u === 'admin' && p === 'admin123') {
+            document.body.classList.add('is-logged');
+            recalculate();
+        } else alert("Credenciales incorrectas");
+    }
+
+    function logout() { document.body.classList.remove('is-logged'); }
+
+    function recalculate() {
+        const bankInit = parseFloat(document.getElementById('cfg-bank').value) || 1000;
+        const stakePct = parseFloat(document.getElementById('cfg-stake').value) || 1;
+        const mode = document.getElementById('cfg-mode').value;
+
+        let curBank = bankInit;
+        let totalStaked = 0, totalProfit = 0, wins = 0, losses = 0;
+        let unitsStaked = 0, unitsProfit = 0;
+        let grossWins = 0, grossLosses = 0;
+
+        const sorted = [...picks].sort((a,b) => a.date.localeCompare(b.date));
+        
+        const results = sorted.map(p => {
+            const fraction = p.unitNum / p.unitDen;
+            const stake = (mode === 'A' ? curBank : bankInit) * (stakePct/100) * fraction;
+            
+            let profit = 0;
+            if (p.result === 'WIN') profit = stake * (p.odds - 1);
+            else if (p.result === 'LOSS') profit = -stake;
+            else if (p.result === 'HW') profit = (stake / 2) * (p.odds - 1);
+            else if (p.result === 'HL') profit = -(stake / 2);
+
+            curBank += profit;
+            totalProfit += profit;
+            totalStaked += stake;
+            unitsStaked += p.unitNum;
+            unitsProfit += (profit / (stake / p.unitNum));
+
+            if (profit > 0) { wins++; grossWins += profit; }
+            else if (profit < 0) { losses++; grossLosses += Math.abs(profit); }
+
+            return { ...p, calcProfit: profit, calcBank: curBank, stake };
+        });
+
+        // Métricas de tiempo
+        const days = results.length > 0 ? (new Date(results[results.length-1].date) - new Date(results[0].date)) / 86400000 : 1;
+        const daysActive = Math.max(1, days);
+
+        // Update Stats UI
+        document.getElementById('s-total').textContent = results.length;
+        document.getElementById('s-perday').textContent = (results.length / daysActive).toFixed(2);
+        document.getElementById('s-wins').textContent = wins;
+        document.getElementById('s-losses').textContent = losses;
+        document.getElementById('s-units-staked').textContent = unitsStaked.toFixed(2) + ' u.';
+        document.getElementById('s-units-profit').textContent = (unitsProfit).toFixed(2) + ' u.';
+        document.getElementById('s-profit-day').textContent = '$' + (totalProfit / daysActive).toFixed(2);
+        document.getElementById('s-profit-pick').textContent = '$' + (results.length ? (totalProfit / results.length).toFixed(2) : 0);
+        document.getElementById('s-pf').textContent = grossLosses ? (grossWins / grossLosses).toFixed(2) : grossWins.toFixed(1);
+        document.getElementById('s-yield').textContent = totalStaked ? ((totalProfit / totalStaked) * 100).toFixed(2) + '%' : '0%';
+
+        renderCharts(results);
+        renderTable(results);
+        localStorage.setItem('wisebet_picks', JSON.stringify(picks));
+    }
+
+    function renderCharts(res) {
+        // 1. Acumulado
+        updateChart('c-equity', 'line', res.map(r => r.date), [{
+            label: 'Beneficio', data: res.map(r => r.calcBank - parseFloat(document.getElementById('cfg-bank').value)),
+            borderColor: '#b2cf3e', backgroundColor: 'rgba(178,207,62,0.1)', fill: true, tension: 0.4
+        }]);
+
+        // 2. Por cuotas (Buckets)
+        const buckets = ["1-1.4", "1.4-1.6", "1.6-1.8", "1.8-2", "2-2.5", "2.5-3", "3-3.5", "3.5-4", "4-99"];
+        const bucketData = buckets.map(b => {
+            const [min, max] = b.split('-').map(Number);
+            const items = res.filter(r => r.odds >= min && r.odds < max);
+            const profit = items.reduce((a,c) => a + c.calcProfit, 0);
+            const wins = items.filter(r => r.calcProfit > 0).length;
+            const wr = items.length ? (wins / items.length) * 100 : 0;
+            const avgOdds = items.length ? items.reduce((a,c) => a + c.odds, 0) / items.length : 1;
+            return { label: b, profit, wr, be: 100/avgOdds };
+        });
+
+        updateChart('c-range-profit', 'bar', buckets, [{
+            label: 'Profit $', data: bucketData.map(d => d.profit),
+            backgroundColor: bucketData.map(d => d.profit >= 0 ? '#b2cf3e' : '#ef4444')
+        }]);
+
+        updateChart('c-range-hr', 'line', buckets, [
+            { label: 'Hit Rate %', data: bucketData.map(d => d.wr), borderColor: '#b2cf3e', tension: 0.4 },
+            { label: 'Breakeven %', data: bucketData.map(d => d.be), borderColor: '#666', borderDash: [5,5], pointRadius: 0 }
+        ]);
+
+        // 3. Semanal
+        const weekly = {};
+        res.forEach(r => {
+            const d = new Date(r.date);
+            const week = `Sem ${Math.ceil(d.getDate() / 7)}`;
+            weekly[week] = (weekly[week] || 0) + r.calcProfit;
+        });
+        updateChart('c-weekly', 'bar', Object.keys(weekly), [{
+            label: 'Profit Semanal', data: Object.values(weekly),
+            backgroundColor: Object.values(weekly).map(v => v >= 0 ? '#b2cf3e' : '#ef4444')
+        }]);
+    }
+
+    function updateChart(id, type, labels, datasets) {
+        if (charts[id]) charts[id].destroy();
+        charts[id] = new Chart(document.getElementById(id), {
+            type, data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } },
+                    x: { grid: { display: false }, ticks: { color: '#666' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function renderTable(res) {
+        const tbody = document.querySelector('#main-table tbody');
+        tbody.innerHTML = [...res].reverse().slice(0, 15).map(p => `
+            <tr>
+                <td>${p.date}</td>
+                <td style="font-weight:700">${p.event}</td>
+                <td>${p.bet}</td>
+                <td class="mono">@${p.odds}</td>
+                <td class="mono">${p.unitNum}/5</td>
+                <td><span class="badge badge-${p.result.toLowerCase()}">${p.result}</span></td>
+                <td class="mono ${p.calcProfit >= 0 ? 'pos' : 'neg'}">${p.calcProfit.toFixed(2)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function processPastedText() {
+        const text = document.getElementById('raw-paste').value;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const dateRegex = /^(\d{2})\.(\d{2})\.(\d{2,4})$/;
+        
+        let current = null;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (dateRegex.test(line)) {
+                if (current) picks.push(current);
+                const [d,m,y] = line.split('.');
+                current = { date: `20${y}-${m}-${d}`, event: '', bet: '', odds: 0, unitNum: 0, unitDen: 5, result: 'PENDING' };
+            } else if (current) {
+                if (line.includes('Bet:')) current.bet = line.split(':')[1].trim();
+                else if (line === 'Odds') current.odds = parseFloat(lines[++i]);
+                else if (line === 'Unit') current.unitNum = parseFloat(lines[++i].split('/')[0]);
+                else if (line === 'FT') current.result = lines[++i].toUpperCase();
+                else if (!current.event && line.length > 5) current.event = line;
+            }
+        }
+        if (current) picks.push(current);
+        document.getElementById('raw-paste').value = '';
+        recalculate();
+    }
+</script>
+</body>
+</html>

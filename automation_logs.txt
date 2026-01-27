@@ -1,0 +1,13 @@
+--- CONTROLADOR PRO V2.0: 26/1/2026, 4:42:36 p. m. ---
+[26/1/2026, 4:42:36 p. m.] [INFO] Sincronización Iniciada: Plan=ALL | Modo=YESTERDAY
+[26/1/2026, 4:42:37 p. m.] [INFO] Iniciando extracción en STANDARD (Modo: YESTERDAY)
+[26/1/2026, 4:42:43 p. m.] ✅ [SUCCESS] Capturados 14/1662 picks válidos para STANDARD.
+[26/1/2026, 4:42:45 p. m.] [INFO] Iniciando extracción en PREMIUM (Modo: YESTERDAY)
+[26/1/2026, 4:42:51 p. m.] ✅ [SUCCESS] Capturados 14/1485 picks válidos para PREMIUM.
+[26/1/2026, 4:42:53 p. m.] [INFO] Iniciando extracción en ELITE (Modo: YESTERDAY)
+[26/1/2026, 4:42:59 p. m.] ✅ [SUCCESS] Capturados 14/1504 picks válidos para ELITE.
+[26/1/2026, 4:43:01 p. m.] [INFO] PROCESO COMPLETADO:
+[26/1/2026, 4:43:01 p. m.] ✅ [SUCCESS] - Picks nuevos: 0
+[26/1/2026, 4:43:01 p. m.] 🔄 [UPDATE] - Resultados liquidados: 0
+[26/1/2026, 4:43:01 p. m.] [INFO] -picks ya procesados: 42
+[26/1/2026, 4:43:01 p. m.] [INFO] --- SESION FINALIZADA. ---
