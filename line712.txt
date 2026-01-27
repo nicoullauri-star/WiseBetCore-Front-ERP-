@@ -1,0 +1,1 @@
+﻿                                                                                    <span className="text-[8px] font-black text-[#333] uppercase group-hover/stat:text-white transition-colors">Caja Disponible</span>
