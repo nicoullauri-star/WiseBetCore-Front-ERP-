@@ -1,8 +1,200 @@
+/* ============================================================================
+   SISTEMA DE MODALES - Layout definitivo y contenido controlado
+   ============================================================================ */
+
+/* Contenedor del modal - Bloquea scroll del body */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
+  /* CRÍTICO: evita que el backdrop scrollee */
+}
+
+@media (min-width: 640px) {
+  .modal-overlay {
+    padding: 1.5rem;
+  }
+}
+
+/* Panel del modal - Tamaño máximo controlado */
+.modal-panel {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  /* CRÍTICO: nunca excede el viewport */
+  overflow: hidden;
+  /* CRÍTICO: contiene todo el contenido */
+  border-radius: 1rem;
+  background: #0f1115;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+@media (min-width: 640px) {
+  .modal-panel {
+    max-height: 85vh;
+  }
+}
+
+/* Header del modal - SIEMPRE visible */
+.modal-header {
+  flex-shrink: 0;
+  /* CRÍTICO: no se comprime */
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0a0a0f;
+  border-radius: 1rem 1rem 0 0;
+}
+
+/* Body del modal - ÚNICO elemento scrollable */
+.modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  /* Evita scroll chain */
+  -webkit-overflow-scrolling: touch;
+  /* Smooth scroll iOS */
+  scrollbar-gutter: stable;
+  /* Reserva espacio para scrollbar */
+  min-height: 0;
+  /* CRÍTICO para flex scroll */
+}
+
+/* Footer del modal - SIEMPRE visible */
+.modal-footer {
+  flex-shrink: 0;
+  /* CRÍTICO: no se comprime */
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0a0a0f;
+  border-radius: 0 0 1rem 1rem;
+}
+
+/* Bloquear scroll del body cuando modal está abierto */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* Scrollbar elegante para modales */
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Firefox scrollbar */
+.modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* Tamaños de modal predefinidos */
+.modal-sm {
+  max-width: 24rem;
+}
+
+/* 384px */
+.modal-md {
+  max-width: 28rem;
+}
+
+/* 448px */
+.modal-lg {
+  max-width: 32rem;
+}
+
+/* 512px */
+.modal-xl {
+  max-width: 42rem;
+}
+
+/* 672px */
+.modal-2xl {
+  max-width: 56rem;
+}
+
+/* 896px */
+
+@media (min-width: 640px) {
+  .modal-sm {
+    max-width: 20rem;
+  }
+
+  .modal-md {
+    max-width: 28rem;
+  }
+
+  .modal-lg {
+    max-width: 32rem;
+  }
+
+  .modal-xl {
+    max-width: 36rem;
+  }
+
+  .modal-2xl {
+    max-width: 42rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .modal-xl {
+    max-width: 40rem;
+  }
+
+  .modal-2xl {
+    max-width: 56rem;
+  }
+}
+
+/* ============================================================================
+   ANIMACIONES
+   ============================================================================ */
+
 /* Animation for shake effect on validation errors */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-  20%, 40%, 60%, 80% { transform: translateX(4px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
 }
 
 .animate-shake {
@@ -15,6 +207,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -27,195 +220,609 @@
 
 /* Spin animation for loading states */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin {
   animation: spin 1s linear infinite;
 }
 
-/* FullCalendar Custom Styles */
+/* ============================================================================
+   FULLCALENDAR - Diseño Moderno y Profesional para ERP
+   Fuente: Inter/Sistema | Paleta: Profesional oscura con acentos azules
+   ============================================================================ */
+
 .fullcalendar-custom {
-  /* Variables de color para el tema oscuro */
-  --fc-border-color: rgba(255, 255, 255, 0.1);
-  --fc-button-bg-color: rgba(59, 130, 246, 0.2);
-  --fc-button-border-color: rgba(59, 130, 246, 0.4);
-  --fc-button-hover-bg-color: rgba(59, 130, 246, 0.3);
-  --fc-button-hover-border-color: rgba(59, 130, 246, 0.6);
-  --fc-button-active-bg-color: rgba(59, 130, 246, 0.4);
-  --fc-button-active-border-color: rgba(59, 130, 246, 0.8);
-  --fc-today-bg-color: rgba(59, 130, 246, 0.05);
+  /* Variables de diseño - Paleta sobria y profesional */
+  --fc-border-color: rgba(255, 255, 255, 0.06);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(15, 15, 20, 0.6);
+  --fc-today-bg-color: rgba(99, 102, 241, 0.06);
+
+  /* Colores de acento */
+  --cal-accent: 99, 102, 241;
+  /* Indigo */
+  --cal-accent-secondary: 139, 92, 246;
+  /* Violet */
+  --cal-success: 34, 197, 94;
+  --cal-warning: 245, 158, 11;
+  --cal-danger: 239, 68, 68;
+
+  /* Espaciado */
+  --cal-cell-padding: 8px;
+  --cal-radius-sm: 6px;
+  --cal-radius-md: 10px;
+  --cal-radius-lg: 14px;
 }
 
+/* Tipografía base - Usar fuente del sistema o Inter */
 .fullcalendar-custom .fc {
-  font-family: inherit;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* ============================================================================
+   ESTRUCTURA Y BORDES - Líneas sutiles y limpias
+   ============================================================================ */
 
 .fullcalendar-custom .fc-theme-standard td,
 .fullcalendar-custom .fc-theme-standard th {
-  border-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--fc-border-color);
 }
 
 .fullcalendar-custom .fc-scrollgrid {
-  border-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--cal-radius-lg);
+  overflow: hidden;
+}
+
+.fullcalendar-custom .fc-scrollgrid-section>* {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================================================
+   ENCABEZADO DE DÍAS - Minimalista y elegante
+   ============================================================================ */
+
+.fullcalendar-custom .fc-col-header {
+  background: linear-gradient(180deg, rgba(15, 15, 20, 0.9) 0%, rgba(10, 10, 15, 0.95) 100%);
 }
 
 .fullcalendar-custom .fc-col-header-cell {
-  background: rgba(10, 10, 10, 0.8);
-  color: #94a3b8;
-  font-weight: 700;
+  padding: 14px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fullcalendar-custom .fc-col-header-cell-cushion {
+  color: rgba(148, 163, 184, 0.9);
+  font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 12px 8px;
+  letter-spacing: 0.08em;
+  padding: 4px 0;
+  display: inline-block;
 }
+
+/* Día actual en header */
+/* Día actual en header - DESACTIVADO para que se vea normal
+.fullcalendar-custom .fc-day-today .fc-col-header-cell-cushion {
+  color: rgb(var(--cal-accent));
+  font-weight: 700;
+} */
+
+/* ============================================================================
+   CELDAS DE DÍAS - Espaciado cómodo y estados claros
+   ============================================================================ */
 
 .fullcalendar-custom .fc-daygrid-day {
-  background: rgba(13, 13, 13, 0.5);
+  background: rgba(10, 10, 14, 0.4);
+  transition: background-color 0.1s ease;
 }
 
+/* Estado Hover - Sutil pero perceptible */
 .fullcalendar-custom .fc-daygrid-day:hover {
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(99, 102, 241, 0.04);
+}
+
+/* Celda con focus para accesibilidad */
+.fullcalendar-custom .fc-daygrid-day:focus-within {
+  outline: 2px solid rgba(var(--cal-accent), 0.5);
+  outline-offset: -2px;
+  z-index: 5;
+}
+
+/* Día fuera del mes actual */
+.fullcalendar-custom .fc-day-other {
+  background: rgba(5, 5, 8, 0.6);
+}
+
+.fullcalendar-custom .fc-day-other .fc-daygrid-day-number {
+  color: rgba(100, 116, 139, 0.5);
+}
+
+/* ============================================================================
+   NÚMERO DEL DÍA - Tipografía clara y legible
+   ============================================================================ */
+
+.fullcalendar-custom .fc-daygrid-day-top {
+  padding: var(--cal-cell-padding);
+  justify-content: flex-start;
 }
 
 .fullcalendar-custom .fc-daygrid-day-number {
-  color: #e2e8f0;
-  font-weight: 600;
+  color: rgba(226, 232, 240, 0.95);
+  font-weight: 500;
   font-size: 13px;
-  padding: 8px;
+  line-height: 1.4;
+  padding: 4px 8px;
+  border-radius: var(--cal-radius-sm);
+  transition: all 0.15s ease;
 }
 
-.fullcalendar-custom .fc-day-today {
-  background: rgba(59, 130, 246, 0.08) !important;
+/* Hover en número del día */
+.fullcalendar-custom .fc-daygrid-day:hover .fc-daygrid-day-number {
+  color: #ffffff;
 }
 
-.fullcalendar-custom .fc-day-today .fc-daygrid-day-number {
-  background: rgba(59, 130, 246, 0.3);
-  color: #60a5fa;
-  border-radius: 6px;
-  font-weight: 800;
+/* ============================================================================
+   DÍA ACTUAL - Destacado pero elegante
+   ============================================================================ */
+
+/* .fullcalendar-custom .fc-day-today {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%) !important;
+} */
+
+/* .fullcalendar-custom .fc-day-today .fc-daygrid-day-number {
+  background: linear-gradient(135deg, rgb(99, 102, 241) 0%, rgb(79, 70, 229) 100%);
+  color: #ffffff;
+  font-weight: 700;
+  padding: 4px 10px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35), 0 0 0 1px rgba(99, 102, 241, 0.2);
+} */
+
+/* ============================================================================
+   TOOLBAR / ENCABEZADO DEL CALENDARIO - Moderno con buena jerarquía
+   ============================================================================ */
+
+.fullcalendar-custom .fc-toolbar {
+  margin-bottom: 20px;
+  gap: 16px;
 }
 
+.fullcalendar-custom .fc-toolbar-chunk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Título del mes - Prominente y legible */
 .fullcalendar-custom .fc-toolbar-title {
   color: #ffffff;
-  font-weight: 900;
-  font-size: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+  text-transform: capitalize;
 }
 
+/* ============================================================================
+   BOTONES DE NAVEGACIÓN - Modernos con iconografía clara
+   ============================================================================ */
+
 .fullcalendar-custom .fc-button {
-  background: rgba(59, 130, 246, 0.15) !important;
-  border: 1px solid rgba(59, 130, 246, 0.3) !important;
-  color: #93c5fd !important;
-  font-weight: 700;
-  font-size: 11px;
-  text-transform: uppercase;
-  padding: 8px 14px !important;
-  border-radius: 8px !important;
-  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: rgba(226, 232, 240, 0.9) !important;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: capitalize;
+  padding: 9px 16px !important;
+  border-radius: var(--cal-radius-md) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .fullcalendar-custom .fc-button:hover {
-  background: rgba(59, 130, 246, 0.25) !important;
-  border-color: rgba(59, 130, 246, 0.5) !important;
-  color: #dbeafe !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.fullcalendar-custom .fc-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4) !important;
 }
 
 .fullcalendar-custom .fc-button:active,
 .fullcalendar-custom .fc-button-active {
-  background: rgba(59, 130, 246, 0.35) !important;
-  border-color: rgba(59, 130, 246, 0.7) !important;
+  background: rgba(99, 102, 241, 0.2) !important;
+  border-color: rgba(99, 102, 241, 0.5) !important;
   color: #ffffff !important;
+  transform: translateY(0);
+}
+
+/* Botón activo (vista seleccionada) */
+.fullcalendar-custom .fc-button-active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(99, 102, 241, 0.15) 100%) !important;
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(99, 102, 241, 0.2) !important;
 }
 
 .fullcalendar-custom .fc-button:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
   cursor: not-allowed;
+  transform: none !important;
 }
 
+/* Botón "Hoy" - Ligeramente destacado */
+.fullcalendar-custom .fc-today-button {
+  background: rgba(99, 102, 241, 0.1) !important;
+  border-color: rgba(99, 102, 241, 0.25) !important;
+  color: rgb(165, 180, 252) !important;
+}
+
+.fullcalendar-custom .fc-today-button:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.2) !important;
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  color: #ffffff !important;
+}
+
+/* Grupo de botones prev/next */
+.fullcalendar-custom .fc-button-group {
+  gap: 4px;
+}
+
+.fullcalendar-custom .fc-button-group .fc-button {
+  border-radius: var(--cal-radius-md) !important;
+}
+
+/* Iconos de navegación más elegantes */
+.fullcalendar-custom .fc-icon {
+  font-size: 1.1em;
+}
+
+.fullcalendar-custom .fc-prev-button,
+.fullcalendar-custom .fc-next-button {
+  padding: 9px 12px !important;
+}
+
+/* ============================================================================
+   EVENTOS - Cards elegantes y legibles
+   ============================================================================ */
+
 .fullcalendar-custom .fc-event {
-  border-radius: 6px;
+  border-radius: var(--cal-radius-sm);
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 2px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  margin: 1px 3px 2px 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 11px;
+  /* Optimización de rendimiento */
+  will-change: transform;
+  contain: layout style;
 }
 
 .fullcalendar-custom .fc-event:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-  filter: brightness(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.fullcalendar-custom .fc-event:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.3);
+  outline-offset: 1px;
 }
 
 .fullcalendar-custom .fc-daygrid-event {
   padding: 2px 4px;
+  white-space: normal;
+  line-height: 1.2;
+  overflow: hidden;
+  max-height: 52px;
+  /* Limitar altura para que quepa en celda */
 }
 
-.fullcalendar-custom .fc-daygrid-more-link {
-  color: #60a5fa;
-  font-weight: 700;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.fullcalendar-custom .fc-daygrid-more-link:hover {
-  color: #93c5fd;
-  background: rgba(59, 130, 246, 0.1);
-  border-radius: 4px;
+/* Eventos de fondo (rangos) - Sin transiciones para mejor rendimiento */
+.fullcalendar-custom .fc-bg-event {
+  opacity: 0.5;
+  border-radius: 0;
+  pointer-events: none;
+  transition: none !important;
 }
 
 /* ============================================================================
-   SISTEMA DE URGENCIA - Animaciones de pulso
+   LINK "MÁS EVENTOS" - Discreto pero accesible
+   ============================================================================ */
+
+.fullcalendar-custom .fc-daygrid-more-link {
+  color: rgb(165, 180, 252);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: var(--cal-radius-sm);
+  transition: all 0.15s ease;
+}
+
+.fullcalendar-custom .fc-daygrid-more-link:hover {
+  color: #ffffff;
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* ============================================================================
+   FRAME DE CELDAS - Estructura con flex para orden correcto
+   ============================================================================ */
+
+.fullcalendar-custom .fc-daygrid-day-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 110px;
+  position: relative;
+  padding-bottom: 4px;
+}
+
+/* El top contiene el número del día + botones de acción */
+.fullcalendar-custom .fc-daygrid-day-top {
+  order: 1;
+  flex-shrink: 0;
+}
+
+/* Los eventos van después del top */
+.fullcalendar-custom .fc-daygrid-day-events {
+  order: 2;
+  flex: 1 1 auto;
+  margin-top: 2px;
+  padding: 0 2px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* El bottom (si existe) va al final */
+.fullcalendar-custom .fc-daygrid-day-bottom {
+  order: 3;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   CELDA DEL DÍA - Botones de acción integrados
+   Estructura: Número del día arriba, botones abajo (dentro del frame)
+   ============================================================================ */
+
+/* El top del día contiene el número + nuestros botones */
+.fullcalendar-custom .fc-daygrid-day-top {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Contenedor principal renderizado por dayCellContent */
+.calendar-day-cell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  justify-content: space-between;
+  /* Número arriba, botones abajo/medio */
+  gap: 4px;
+}
+
+/* Número del día - Alineado a la derecha */
+.calendar-day-number {
+  display: block;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.85);
+  line-height: 1.2;
+  padding: 4px 6px 0 0;
+}
+
+/* Contenedor de botones - Flujo normal, no absoluto */
+.calendar-day-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  margin-top: auto;
+  /* Empujar hacia abajo si hay espacio, o simplemente separar */
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Mostrar botones en hover sobre la celda del día */
+.fc-daygrid-day:hover .calendar-day-buttons {
+  opacity: 1;
+}
+
+/* Botón base - compacto y legible */
+.calendar-btn-planificar,
+.calendar-btn-crear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 5px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+/* Botón Planificar - Azul/Indigo */
+.calendar-btn-planificar {
+  color: rgba(165, 180, 252, 0.95);
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.calendar-btn-planificar:hover {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #ffffff;
+}
+
+/* Botón Crear - Verde/Emerald */
+.calendar-btn-crear {
+  color: rgba(167, 243, 208, 0.95);
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.calendar-btn-crear:hover {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #ffffff;
+}
+
+/* ============================================================================
+   EVENTO PLANIFICADO - Solo info (sin botón, el botón está en DayCell)
+   ============================================================================ */
+
+.evento-planificado-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 3px 5px;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.evento-planificado-header {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.2;
+}
+
+.evento-planificado-agency {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evento-planificado-pendientes {
+  font-size: 8px;
+  color: rgba(251, 191, 36, 0.9);
+  font-weight: 500;
+}
+
+.evento-planificado-completed {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
+  font-weight: 500;
+  color: rgba(52, 211, 153, 0.9);
+}
+
+/* Popover de eventos (cuando hay más) */
+.fullcalendar-custom .fc-popover {
+  background: rgba(15, 15, 20, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--cal-radius-lg);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.fullcalendar-custom .fc-popover-header {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--cal-radius-lg) var(--cal-radius-lg) 0 0;
+}
+
+.fullcalendar-custom .fc-popover-body {
+  padding: 8px;
+}
+
+.fullcalendar-custom .fc-popover-close {
+  color: rgba(148, 163, 184, 0.8);
+  transition: color 0.15s;
+}
+
+.fullcalendar-custom .fc-popover-close:hover {
+  color: #ffffff;
+}
+
+/* ============================================================================
+   SISTEMA DE URGENCIA - Animaciones sutiles y profesionales
    ============================================================================ */
 
 @keyframes urgente-pulso {
-  0%, 100% { 
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-    transform: scale(1);
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35);
   }
-  50% { 
-    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
-    transform: scale(1.02);
+
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
   }
 }
 
 .fullcalendar-custom .evento-urgente-pulso {
-  animation: urgente-pulso 2s ease-in-out infinite;
+  animation: urgente-pulso 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* ============================================================================
-   DRAG & DROP - Estilos para eventos arrastrables
+   DRAG & DROP - Interacción visual elegante
    ============================================================================ */
 
+/* Evento planificado estático (no draggable) */
+.fullcalendar-custom .evento-planificado {
+  cursor: default;
+  opacity: 0.85;
+}
+
+/* Evento planificado draggable */
 .fullcalendar-custom .evento-planificado-draggable {
   cursor: grab;
-  transition: all 0.2s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  position: relative;
 }
 
 .fullcalendar-custom .evento-planificado-draggable:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .fullcalendar-custom .evento-planificado-draggable:active,
 .fullcalendar-custom .fc-event-dragging {
   cursor: grabbing !important;
-  transform: scale(1.05);
-  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.5);
+  transform: scale(1.05) rotate(1deg);
+  box-shadow: 0 12px 28px rgba(139, 92, 246, 0.4), 0 0 0 2px rgba(139, 92, 246, 0.3);
   z-index: 1000 !important;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 /* Indicador visual cuando se arrastra sobre una celda válida */
 .fullcalendar-custom .fc-day-highlight {
-  background: rgba(139, 92, 246, 0.1) !important;
+  background: rgba(139, 92, 246, 0.08) !important;
+  transition: background-color 0.15s ease;
 }
 
 /* ============================================================================
-   DÍAS DENTRO DEL RANGO - Estilos para hover y crear perfil
+   DÍAS DENTRO DEL RANGO - Estados interactivos
    ============================================================================ */
 
 .fullcalendar-custom .dia-en-rango {
@@ -223,16 +830,25 @@
 }
 
 .fullcalendar-custom .dia-crear-disponible {
-  transition: all 0.2s ease;
+  transition: background-color 0.1s ease;
 }
 
 .fullcalendar-custom .dia-crear-disponible:hover {
-  background: rgba(16, 185, 129, 0.08) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(16, 185, 129, 0.02) 100%) !important;
+}
+
+.fullcalendar-custom .dia-crear-disponible:hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 0;
+  pointer-events: none;
 }
 
 /* Asegurar que el contenido de la celda ocupe todo el espacio */
 .fullcalendar-custom .fc-daygrid-day-frame {
-  min-height: 100px;
+  min-height: 110px;
   position: relative;
 }
 
@@ -247,25 +863,926 @@
 }
 
 .fullcalendar-custom .dia-crear-disponible:hover .fc-daygrid-day-number {
-  color: #34d399;
+  color: rgb(52, 211, 153);
 }
 
 /* ============================================================================
-   ANIMACIONES GENERALES
+   ANIMACIONES GLOBALES - Suaves y no invasivas
    ============================================================================ */
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
 }
 
 .animate-pulse-soft {
-  animation: pulse-soft 2s ease-in-out infinite;
+  animation: pulse-soft 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Transición suave para todos los elementos del calendario */
-.fullcalendar-custom * {
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Transición suave para elementos interactivos del calendario */
+.fullcalendar-custom .fc-daygrid-day,
+.fullcalendar-custom .fc-event,
+.fullcalendar-custom .fc-button,
+.fullcalendar-custom .fc-daygrid-day-number {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+/* Vista semanal - Ajustes */
+.fullcalendar-custom .fc-dayGridWeek-view .fc-daygrid-day-frame {
+  min-height: 200px;
+}
+
+/* ============================================================================
+   RESPONSIVE - Adaptaciones para pantallas pequeñas
+   ============================================================================ */
+
+@media (max-width: 640px) {
+  .fullcalendar-custom .fc-toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .fullcalendar-custom .fc-toolbar-title {
+    font-size: 1.1rem;
+    order: -1;
+  }
+
+  .fullcalendar-custom .fc-daygrid-day-frame {
+    min-height: 80px;
+  }
+
+  .fullcalendar-custom .fc-button {
+    padding: 6px 10px !important;
+    font-size: 11px;
+  }
+
+  .fullcalendar-custom .fc-col-header-cell-cushion {
+    font-size: 9px;
+  }
+
+  .fullcalendar-custom .fc-daygrid-day-number {
+    font-size: 11px;
+    padding: 2px 4px;
+  }
+}
+
+/* ============================================================================
+   ACCESIBILIDAD - Alto contraste y focus visible
+   ============================================================================ */
+
+@media (prefers-contrast: high) {
+  .fullcalendar-custom .fc-daygrid-day-number {
+    color: #ffffff;
+  }
+
+  .fullcalendar-custom .fc-event {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .fullcalendar-custom .fc-button {
+    border-width: 2px !important;
+  }
+}
+
+/* Modo de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+
+  .fullcalendar-custom .fc-event,
+  .fullcalendar-custom .fc-button,
+  .fullcalendar-custom .fc-daygrid-day {
+    transition: none;
+  }
+
+  .fullcalendar-custom .evento-urgente-pulso {
+    animation: none;
+  }
+
+  .animate-pulse-soft {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   ACORDEONES - Centro de Gestión
+   Secciones colapsables con animación suave
+   ============================================================================ */
+
+/* Contenedor de acordeones */
+.accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Sección de acordeón */
+.accordion-section {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 17, 21, 0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.accordion-section:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.accordion-section.expanded {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Header del acordeón */
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.accordion-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.accordion-section.expanded .accordion-header {
+  background: transparent;
+}
+
+/* Icono del acordeón */
+.accordion-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(148, 163, 184, 0.8);
+  transition: all 0.3s ease;
+}
+
+.accordion-section.expanded .accordion-icon {
+  background: rgba(99, 102, 241, 0.15);
+  color: rgb(99, 102, 241);
+}
+
+/* Contenido del acordeón */
+.accordion-content {
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-content-inner {
+  padding: 0 1.25rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 0;
+  padding-top: 1rem;
+}
+
+/* Flecha de expandir/colapsar */
+.accordion-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  color: rgba(148, 163, 184, 0.6);
+  transition: all 0.3s ease;
+}
+
+.accordion-chevron svg {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-section.expanded .accordion-chevron {
+  background: rgba(99, 102, 241, 0.1);
+  color: rgb(99, 102, 241);
+}
+
+.accordion-section.expanded .accordion-chevron svg {
+  transform: rotate(180deg);
+}
+
+/* Badge de contador */
+.accordion-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: 9999px;
+  background: rgb(239, 68, 68);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Variantes de color para badges */
+.accordion-badge.success {
+  background: rgb(34, 197, 94);
+}
+
+.accordion-badge.warning {
+  background: rgb(245, 158, 11);
+}
+
+.accordion-badge.info {
+  background: rgb(59, 130, 246);
+}
+
+.accordion-badge.primary {
+  background: rgb(99, 102, 241);
+}
+
+/* Animación de pulso para badges urgentes */
+.accordion-badge.pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+/* ============================================================================
+   CENTRO DE GESTIÓN - Dashboard Enterprise
+   Sistema de rejilla de 8px | Heurísticas de Nielsen
+   ============================================================================ */
+
+/* Contenedor principal */
+.centro-gestion-container {
+  --spacing-unit: 8px;
+  --spacing-xs: calc(var(--spacing-unit) * 1);
+  /* 8px */
+  --spacing-sm: calc(var(--spacing-unit) * 2);
+  /* 16px */
+  --spacing-md: calc(var(--spacing-unit) * 3);
+  /* 24px */
+  --spacing-lg: calc(var(--spacing-unit) * 4);
+  /* 32px */
+  --spacing-xl: calc(var(--spacing-unit) * 5);
+  /* 40px */
+
+  /* Colores profesionales */
+  --color-surface: rgba(15, 17, 21, 0.6);
+  --color-surface-elevated: rgba(20, 24, 32, 0.8);
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-hover: rgba(255, 255, 255, 0.12);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgba(148, 163, 184, 0.9);
+  --color-text-muted: rgba(148, 163, 184, 0.6);
+
+  padding: var(--spacing-sm);
+}
+
+@media (min-width: 640px) {
+  .centro-gestion-container {
+    padding: var(--spacing-md);
+  }
+}
+
+@media (min-width: 1024px) {
+  .centro-gestion-container {
+    padding: var(--spacing-lg);
+  }
+}
+
+/* Panel de acordeón - Diseño premium */
+.accordion-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-panel:hover {
+  border-color: var(--color-border-hover);
+}
+
+.accordion-panel.expanded {
+  background: var(--color-surface-elevated);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(99, 102, 241, 0.1);
+}
+
+/* Header del centro de gestión */
+.centro-gestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* Botones de acción del header */
+.centro-gestion-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 4px;
+  background: rgba(30, 35, 45, 0.5);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.centro-gestion-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--spacing-xs) calc(var(--spacing-xs) * 1.5);
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.centro-gestion-action-btn:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.centro-gestion-action-btn.active {
+  color: var(--color-text-primary);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* Feed de alertas estilo CEO */
+.alert-feed-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: all 0.2s ease;
+}
+
+.alert-feed-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Indicador de prioridad lateral */
+.alert-feed-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.alert-feed-item.critical::before {
+  background: rgb(239, 68, 68);
+}
+
+.alert-feed-item.high::before {
+  background: rgb(249, 115, 22);
+}
+
+.alert-feed-item.medium::before {
+  background: rgb(234, 179, 8);
+}
+
+.alert-feed-item.low::before {
+  background: rgb(100, 116, 139);
+}
+
+/* Icono de alerta */
+.alert-feed-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  transition: transform 0.2s ease;
+}
+
+.alert-feed-item:hover .alert-feed-icon {
+  transform: scale(1.08);
+}
+
+/* Contenido de alerta */
+.alert-feed-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-feed-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-feed-subtitle {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Botón de acción de alerta */
+.alert-feed-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.alert-feed-action:hover {
+  transform: scale(1.02);
+}
+
+/* Tabs minimalistas */
+.tabs-minimal {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(30, 35, 45, 0.4);
+  border-radius: 12px;
+}
+
+.tab-minimal {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-minimal:hover {
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab-minimal.active {
+  color: var(--color-text-primary);
+  background: rgba(50, 55, 65, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Badge en tabs */
+.tab-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(100, 116, 139, 0.4);
+  color: var(--color-text-secondary);
+}
+
+.tab-minimal.active .tab-badge {
+  background: rgba(99, 102, 241, 0.8);
+  color: white;
+}
+
+/* Estado vacío elegante */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) var(--spacing-md);
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: rgba(34, 197, 94, 0.08);
+  color: rgba(34, 197, 94, 0.5);
+  margin-bottom: var(--spacing-sm);
+}
+
+.empty-state-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.empty-state-subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Scrollbar profesional para contenido largo */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive para el centro de gestión */
+@media (max-width: 640px) {
+  .centro-gestion-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .centro-gestion-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .alert-feed-item {
+    flex-wrap: wrap;
+  }
+
+  .alert-feed-action {
+    width: 100%;
+    justify-content: center;
+    margin-top: var(--spacing-xs);
+  }
+
+  .tabs-minimal {
+    width: 100%;
+  }
+}
+
+/* Animación de entrada para items */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.alert-feed-item {
+  animation: slideInFromLeft 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+.alert-feed-item:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.alert-feed-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.alert-feed-item:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.alert-feed-item:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.alert-feed-item:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+/* Transición suave para acordeones */
+.accordion-panel {
+  transition:
+    border-color 0.3s ease,
+    background-color 0.3s ease,
+    box-shadow 0.4s ease;
+}
+
+/* Focus visible para accesibilidad */
+.accordion-panel:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+}
+
+/* ============================================================================
+   CALENDARIO DE AGENCIAS - Diseño Profesional (Google Calendar Style)
+   Heurística: Prevención de errores + Guía visual elegante
+   Zona horaria: America/Guayaquil (Ecuador)
+   ============================================================================ */
+
+/* Contenedor del calendario de agencias */
+.calendario-agencias-container {
+  --agencia-color-primary: rgb(16, 185, 129);
+  --agencia-color-primary-light: rgba(16, 185, 129, 0.1);
+}
+
+/* Wrapper del calendario */
+.calendario-agencias-wrapper .fc {
+  --fc-border-color: rgba(255, 255, 255, 0.06);
+  --fc-neutral-bg-color: transparent;
+  --fc-page-bg-color: transparent;
+  --fc-today-bg-color: rgba(16, 185, 129, 0.08);
+  font-family: inherit;
+}
+
+/* Header del calendario */
+.calendario-agencias-wrapper .fc-toolbar {
+  margin-bottom: 16px !important;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.calendario-agencias-wrapper .fc-toolbar-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: white !important;
+  text-transform: capitalize;
+}
+
+/* Botones de navegación */
+.calendario-agencias-wrapper .fc-button {
+  background: rgba(30, 35, 45, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: rgba(148, 163, 184, 0.9) !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.calendario-agencias-wrapper .fc-button:hover {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: rgb(52, 211, 153) !important;
+}
+
+.calendario-agencias-wrapper .fc-button:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.calendario-agencias-wrapper .fc-button-active {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: rgb(52, 211, 153) !important;
+}
+
+/* Encabezados de días de la semana */
+.calendario-agencias-wrapper .fc-col-header-cell {
+  background: rgba(15, 17, 21, 0.6);
+  border-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.calendario-agencias-wrapper .fc-col-header-cell-cushion {
+  padding: 10px 4px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: rgba(148, 163, 184, 0.7) !important;
+}
+
+/* Celdas del calendario - Base */
+.calendario-agencias-wrapper .fc-daygrid-day {
+  border-color: rgba(255, 255, 255, 0.04) !important;
+  transition: all 0.25s ease;
+  min-height: 110px !important;
+  position: relative;
+}
+
+.calendario-agencias-wrapper .fc-daygrid-day-frame {
+  min-height: 110px !important;
+  position: relative;
+}
+
+/* Ocultar el número de día por defecto de FullCalendar */
+.calendario-agencias-wrapper .fc-daygrid-day-top,
+.calendario-agencias-wrapper .fc-daygrid-day-number {
+  display: none !important;
+}
+
+/* ===== DÍAS PASADOS - Diseño "Fade Out" Profesional ===== */
+.calendario-agencias-wrapper .fc-day-disabled-pro {
+  background: rgba(10, 12, 16, 0.7) !important;
+}
+
+.calendario-agencias-wrapper .fc-day-disabled-pro .agencia-cell-wrapper {
+  opacity: 0.35;
+}
+
+.calendario-agencias-wrapper .fc-day-disabled-pro .agencia-day-number {
+  opacity: 0.5;
+}
+
+/* Eventos (historial) en días pasados - visible pero atenuado */
+.calendario-agencias-wrapper .fc-day-disabled-pro .fc-daygrid-day-events {
+  opacity: 0.65;
+}
+
+/* ===== DÍAS ACTIVOS (Hoy/Futuro) - Diseño Interactivo ===== */
+.calendario-agencias-wrapper .fc-day-active-pro {
+  background: rgba(20, 24, 32, 0.4) !important;
+}
+
+.calendario-agencias-wrapper .fc-day-active-pro:hover {
+  background: rgba(30, 36, 48, 0.6) !important;
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.15);
+}
+
+/* ===== DÍA DE HOY - Destacado Especial ===== */
+.calendario-agencias-wrapper .fc-day-today-agencias {
+  background: rgba(16, 185, 129, 0.06) !important;
+  box-shadow: inset 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+.calendario-agencias-wrapper .fc-day-today-agencias:hover {
+  background: rgba(16, 185, 129, 0.1) !important;
+  box-shadow: inset 0 0 0 2px rgba(16, 185, 129, 0.35);
+}
+
+/* Wrapper personalizado dentro de cada celda */
+.agencia-cell-wrapper {
+  z-index: 10;
+  transition: opacity 0.2s ease;
+}
+
+.agencia-day-number {
+  position: relative;
+  z-index: 11;
+  transition: opacity 0.2s ease;
+}
+
+/* Botón crear agencia - Diseño Minimalista Premium */
+.btn-crear-agencia {
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 12;
+}
+
+.btn-crear-agencia:hover {
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-crear-agencia:active {
+  transform: scale(0.97) translateY(0);
+}
+
+/* Contenedor de eventos (badges de agencias) */
+.calendario-agencias-wrapper .fc-daygrid-day-events {
+  position: absolute !important;
+  bottom: 4px !important;
+  left: 4px !important;
+  right: 4px !important;
+  margin: 0 !important;
+  z-index: 5;
+  transition: opacity 0.2s ease;
+}
+
+/* Eventos de agencias creadas */
+.calendario-agencias-evento {
+  position: relative;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+
+/* Días de otros meses - Muy atenuados */
+.calendario-agencias-wrapper .fc-day-other {
+  opacity: 0.25;
+}
+
+.calendario-agencias-wrapper .fc-day-other .agencia-cell-wrapper {
+  display: none;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .calendario-agencias-wrapper .fc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .calendario-agencias-wrapper .fc-toolbar-title {
+    font-size: 14px !important;
+    text-align: center;
+  }
+
+  .calendario-agencias-wrapper .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+  }
+
+  .calendario-agencias-wrapper .fc-daygrid-day,
+  .calendario-agencias-wrapper .fc-daygrid-day-frame {
+    min-height: 85px !important;
+  }
+
+  .btn-crear-agencia {
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+  }
+
+  .btn-crear-agencia span {
+    display: none !important;
+  }
+
+  .agencia-day-number {
+    font-size: 12px !important;
+  }
 }

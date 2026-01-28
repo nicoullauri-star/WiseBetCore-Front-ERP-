@@ -18,11 +18,14 @@ import { useAgencias, useCasas } from '../hooks';
 import { useObjetivosPendientes, useObjetivosAgencia, useCalendarioEventos } from '../hooks/useObjetivos';
 import { CalendarioObjetivos } from '../components/CalendarioObjetivos';
 import { CentroAlertas } from '../components/CentroAlertas';
+import { CentroGestion } from '../components/CentroGestion';
 import { agenciasService } from '../services';
 import { objetivosService } from '../services/objetivos.service';
 import { personasService, type Persona } from '../services/personas.service';
 import { perfilesService } from '../services/perfiles.service';
 import type { Agencia, CreateAgenciaData } from '../types';
+import { ProfilesView } from '../components/ProfilesView';
+import { UsersView } from '../components/UsersView';
 
 // --- CONFIG & THRESHOLDS ---
 const OPS_CONFIG = {
@@ -169,7 +172,7 @@ const OperationalNetwork: React.FC = () => {
 
    const handleSaveAgency = async (e: React.FormEvent) => {
       e.preventDefault();
-      
+
       // Validaciones mejoradas con mensajes específicos
       if (!formData.nombre.trim()) {
          setToast({ message: '⚠️ El nombre de la agencia es obligatorio', type: 'error' });
@@ -200,6 +203,15 @@ const OperationalNetwork: React.FC = () => {
       try {
          let agenciaCreada: Agencia | null = null;
 
+         // LOG: Ver datos que se envían al backend
+         if (process.env.NODE_ENV === 'development') {
+            console.log('[handleSaveAgency] Datos a enviar:', {
+               formData,
+               selectedPersonaId,
+               editingAgency: editingAgency?.id_agencia
+            });
+         }
+
          if (editingAgency) {
             // Update mode - NO se crea objetivo en edición
             await agenciasService.update(editingAgency.id_agencia, formData);
@@ -207,7 +219,7 @@ const OperationalNetwork: React.FC = () => {
          } else {
             // Create mode
             agenciaCreada = await createAgencia(formData);
-            
+
             // Si se definió objetivo, validar y crearlo (2do request)
             if (definirObjetivo && agenciaCreada) {
                // Validar datos del objetivo
@@ -237,7 +249,7 @@ const OperationalNetwork: React.FC = () => {
                   setIsSubmitting(false);
                   return;
                }
-               
+
                try {
                   await objetivosService.create({
                      agencia: agenciaCreada.id_agencia,
@@ -248,15 +260,15 @@ const OperationalNetwork: React.FC = () => {
                      refetchObjetivos(),
                      refetchEventos()
                   ]);
-                  setToast({ 
-                     message: `🎉 Agencia creada con objetivo: ${objetivoData.cantidad_objetivo} perfiles en ${objetivoData.plazo_dias} días`, 
-                     type: 'success' 
+                  setToast({
+                     message: `🎉 Agencia creada con objetivo: ${objetivoData.cantidad_objetivo} perfiles en ${objetivoData.plazo_dias} días`,
+                     type: 'success'
                   });
                } catch (objError) {
                   console.error('Error creando objetivo:', objError);
-                  setToast({ 
-                     message: '⚠️ Agencia creada pero error al crear objetivo', 
-                     type: 'info' 
+                  setToast({
+                     message: '⚠️ Agencia creada pero error al crear objetivo',
+                     type: 'info'
                   });
                }
             } else {
@@ -266,10 +278,10 @@ const OperationalNetwork: React.FC = () => {
 
          // Refetch antes de cerrar
          await refetchAgencias();
-         
+
          setIsModalOpen(false);
          setEditingAgency(null);
-         
+
          // Reset form
          setFormData({
             nombre: '', responsable: '', contacto: '', email: '', casa_madre: 0, rake_porcentaje: 30, url_backoffice: '', tiene_arrastre: false, activo: true
@@ -279,9 +291,18 @@ const OperationalNetwork: React.FC = () => {
          setNumeroDocumento('');
          setDefinirObjetivo(false);
          setObjetivoData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
-      } catch (error) {
-         console.error(error);
-         setToast({ message: '❌ Error al guardar la agencia', type: 'error' });
+      } catch (error: any) {
+         console.error('[handleSaveAgency] Error completo:', error);
+         // Mostrar mensaje de error detallado del backend
+         let errorMessage = '❌ Error al guardar la agencia';
+         if (error?.detail) {
+            errorMessage = `❌ ${error.detail}`;
+         } else if (error?.message) {
+            errorMessage = `❌ ${error.message}`;
+         } else if (typeof error === 'string') {
+            errorMessage = `❌ ${error}`;
+         }
+         setToast({ message: errorMessage, type: 'error' });
       } finally {
          setIsSubmitting(false);
       }
@@ -290,7 +311,7 @@ const OperationalNetwork: React.FC = () => {
    // Función para crear objetivo desde el drawer
    const handleCrearObjetivoDrawer = async () => {
       if (!selectedAgencyForDetails) return;
-      
+
       // Validaciones mejoradas
       if (nuevoObjetivoDrawerData.cantidad_objetivo <= 0) {
          setToast({ message: '⚠️ La cantidad debe ser mayor a 0', type: 'error' });
@@ -315,19 +336,19 @@ const OperationalNetwork: React.FC = () => {
             agencia: selectedAgencyForDetails.id_agencia,
             ...nuevoObjetivoDrawerData
          });
-         
+
          // Refrescar ambos: historial del drawer Y panel de pendientes
          await Promise.all([
             refetchHistorial(),
             refetchObjetivos(),
             refetchEventos()
          ]);
-         
-         setToast({ 
-            message: `✅ Objetivo creado: ${nuevoObjetivoDrawerData.cantidad_objetivo} perfiles en ${nuevoObjetivoDrawerData.plazo_dias} días`, 
-            type: 'success' 
+
+         setToast({
+            message: `✅ Objetivo creado: ${nuevoObjetivoDrawerData.cantidad_objetivo} perfiles en ${nuevoObjetivoDrawerData.plazo_dias} días`,
+            type: 'success'
          });
-         
+
          // Reset form y cerrar
          setShowNuevoObjetivoDrawer(false);
          setNuevoObjetivoDrawerData({ cantidad_objetivo: 5, plazo_dias: 30, estado_inicial_perfiles: 'ACTIVO' });
@@ -423,14 +444,14 @@ const OperationalNetwork: React.FC = () => {
          };
 
          await perfilesService.create(payload);
-         
+
          // Refrescar datos ANTES de cerrar modal para asegurar actualización
          await Promise.all([
             refetchAgencias(),
             refetchObjetivos(),
             refetchEventos()
          ]);
-         
+
          closeProfileModal();
          setToast({ message: '✅ Perfil creado exitosamente', type: 'success' });
 
@@ -492,18 +513,17 @@ const OperationalNetwork: React.FC = () => {
          {/* Toast Animado */}
          {toast && (
             <div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-top-5 fade-in duration-300">
-               <div className={`px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border-2 flex items-center gap-3 min-w-[320px] ${
-                  toast.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100' :
+               <div className={`px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border-2 flex items-center gap-3 min-w-[320px] ${toast.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100' :
                   toast.type === 'error' ? 'bg-rose-500/20 border-rose-500/50 text-rose-100' :
-                  'bg-blue-500/20 border-blue-500/50 text-blue-100'
-               }`}>
+                     'bg-blue-500/20 border-blue-500/50 text-blue-100'
+                  }`}>
                   <div className="animate-bounce">
                      {toast.type === 'success' && <CheckCircle2 size={24} className="text-emerald-400" />}
                      {toast.type === 'error' && <AlertCircle size={24} className="text-rose-400" />}
                      {toast.type === 'info' && <Info size={24} className="text-blue-400" />}
                   </div>
                   <p className="text-sm font-bold flex-1">{toast.message}</p>
-                  <button 
+                  <button
                      onClick={() => setToast(null)}
                      className="p-1 hover:bg-white/10 rounded-lg transition-all"
                   >
@@ -536,7 +556,7 @@ const OperationalNetwork: React.FC = () => {
                         </button>
                      ))}
                   </div>
-                  
+
                   {/* Centro de Alertas */}
                   <CentroAlertas
                      onPlanificarClick={(agenciaId, objetivoId) => {
@@ -551,7 +571,7 @@ const OperationalNetwork: React.FC = () => {
                         setIsProfileModalOpen(true);
                      }}
                   />
-                  
+
                   <button
                      onClick={openCreateModal}
                      className="flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 bg-primary text-white text-[9px] sm:text-[10px] font-black uppercase rounded-lg sm:rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all active:scale-95 flex-shrink-0"
@@ -666,7 +686,7 @@ const OperationalNetwork: React.FC = () => {
                                        `• Historial de movimientos\n\n` +
                                        `Presione OK para confirmar la eliminación.`
                                     );
-                                    
+
                                     if (confirmacion) {
                                        try {
                                           await deleteAgencia(agency.id_agencia);
@@ -738,27 +758,27 @@ const OperationalNetwork: React.FC = () => {
                      color={objetivosPendientes.length === 0 ? "success" : "red"}
                      isFilter={false}
                      isActive={false}
-                     data={objetivosPendientes.length === 0 
+                     data={objetivosPendientes.length === 0
                         ? [{ id: 'empty', val: 'No hay objetivos pendientes', sub: '✨ Todos los objetivos completados' }]
                         : objetivosPendientes.slice(0, 3).map(obj => {
                            // Calcular días restantes hasta la fecha límite
                            const fechaLimite = new Date(obj.fecha_limite);
                            const hoy = new Date();
                            const diasRestantes = Math.ceil((fechaLimite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-                           
+
                            // Determinar color según urgencia
                            let urgenciaColor = 'text-green-600';
                            if (diasRestantes < 7) urgenciaColor = 'text-red-600 font-semibold';
                            else if (diasRestantes < 15) urgenciaColor = 'text-amber-600';
-                           
+
                            return {
                               id: obj.id_objetivo,
                               val: (
                                  <div className="flex flex-col gap-1 w-full">
                                     <span className="font-medium text-sm">Faltan: {obj.perfiles_restantes} perfiles</span>
                                     <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                                       <div 
-                                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" 
+                                       <div
+                                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
                                           style={{ width: `${obj.porcentaje_completado}%` }}
                                        />
                                     </div>
@@ -886,6 +906,10 @@ const OperationalNetwork: React.FC = () => {
                                     <td className="px-6 py-5 text-right font-mono font-black">
                                        {0 > 0 ? (
                                           <span className="text-primary">{fmtMoney(comm)}</span>
+                                       ) : activeTab === 'perfiles' ? (
+                                          <ProfilesView isActive={activeTab === 'perfiles'} />
+                                       ) : activeTab === 'usuarios' ? (
+                                          <UsersView isActive={activeTab === 'usuarios'} />
                                        ) : (
                                           <PortalTooltip text="Sin comisión en este rango: la casa no va ganando.">
                                              <span className="text-slate-600">—</span>
@@ -919,24 +943,71 @@ const OperationalNetwork: React.FC = () => {
             </div>
          ) : activeTab === 'calendario' ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-6 pb-32 sm:pb-40">
-               <CalendarioObjetivos 
-                  eventos={eventosCalendario} 
-                  loading={loadingEventos}
+               <CentroGestion
+                  eventosCalendario={eventosCalendario}
+                  loadingEventos={loadingEventos}
                   objetivosPendientes={objetivosPendientes}
                   filtroAgenciaInicial={calendarioFiltroAgencia}
+                  // Datos para calendario de agencias
+                  agencias={agencias}
+                  loadingAgencias={loadingAgencias}
                   onCrearPerfilClick={(agenciaId, objetivoId) => {
-                     // Abrir modal de crear perfil con la agencia seleccionada (desde calendario)
+                     // LOG: Diagnóstico apertura modal crear perfil
+                     if (process.env.NODE_ENV === 'development') {
+                        console.log('[OperationalNetwork] onCrearPerfilClick desde CentroGestion', {
+                           agenciaId,
+                           objetivoId
+                        });
+                     }
+                     // Abrir modal de crear perfil con la agencia seleccionada
                      setSelectedAgencyId(agenciaId);
                      setProfileModalFromCalendar(true);
                      setIsProfileModalOpen(true);
                   }}
+                  onPlanificarClick={(agenciaId, objetivoId) => {
+                     // Filtrar calendario por la agencia (se expandirá automáticamente)
+                     if (process.env.NODE_ENV === 'development') {
+                        console.log('[OperationalNetwork] onPlanificarClick desde CentroGestion', {
+                           agenciaId,
+                           objetivoId
+                        });
+                     }
+                     setCalendarioFiltroAgencia(agenciaId);
+                  }}
                   onRefresh={() => {
+                     // OPTIMIZACIÓN: Refrescar datos sin limpiar filtro de agencia
+                     if (process.env.NODE_ENV === 'development') {
+                        console.log('[OperationalNetwork] onRefresh - refrescando eventos y objetivos');
+                     }
                      refetchEventos();
                      refetchObjetivos();
-                     // Limpiar el filtro después de refrescar para evitar que se quede "pegado"
-                     setCalendarioFiltroAgencia(null);
+                  }}
+                  // Callback para crear agencia desde calendario
+                  onCrearAgenciaClick={(fecha: Date) => {
+                     if (process.env.NODE_ENV === 'development') {
+                        console.log('[OperationalNetwork] onCrearAgenciaClick desde CentroGestion', {
+                           fecha: fecha.toISOString()
+                        });
+                     }
+                     // Abrir modal de crear agencia (reutilizar openCreateModal)
+                     openCreateModal();
+                     // Nota: La fecha se puede usar si en el futuro quieres pre-llenar algo
+                  }}
+                  onRefreshAgencias={() => {
+                     if (process.env.NODE_ENV === 'development') {
+                        console.log('[OperationalNetwork] onRefreshAgencias - refrescando agencias');
+                     }
+                     refetchAgencias();
                   }}
                />
+            </div>
+         ) : activeTab === 'perfiles' ? (
+            <div className="flex-1 overflow-hidden relative h-full">
+               <ProfilesView isActive={activeTab === 'perfiles'} />
+            </div>
+         ) : activeTab === 'usuarios' ? (
+            <div className="flex-1 overflow-hidden relative h-full">
+               <UsersView isActive={activeTab === 'usuarios'} />
             </div>
          ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-20 opacity-40">
@@ -1053,290 +1124,292 @@ const OperationalNetwork: React.FC = () => {
 
          {/* --- MODAL (NUEVA AGENCIA) --- */}
          {isModalOpen && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-               <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
-               <div className="relative w-full max-w-lg lg:max-w-xl bg-[#0f1115] border border-white/10 rounded-[2rem] shadow-2xl shadow-primary/5 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-5 fade-in duration-300">
+            <div className="modal-overlay">
+               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+               <div className="modal-panel modal-xl animate-in zoom-in-95 slide-in-from-bottom-4 fade-in duration-200">
 
-                  {/* Header */}
-                  <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-white/5 flex justify-between items-center bg-[#151b26]/50 backdrop-blur-xl shrink-0">
-                     <div className="flex items-center gap-4">
-                        <div className="p-2.5 sm:p-3 bg-gradient-to-br from-primary to-blue-600 rounded-2xl text-white shadow-lg shadow-primary/20 ring-1 ring-white/10 group-hover:scale-110 transition-transform duration-500">
-                           {editingAgency ? <Edit size={20} className="sm:w-6 sm:h-6" /> : <UserPlus size={20} className="sm:w-6 sm:h-6" />}
+                  {/* Header - SIEMPRE visible */}
+                  <div className="modal-header flex justify-between items-center">
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 sm:p-2.5 bg-gradient-to-br from-primary to-blue-600 rounded-xl text-white shadow-lg shadow-primary/20">
+                           {editingAgency ? <Edit size={18} /> : <UserPlus size={18} />}
                         </div>
                         <div>
-                           <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">{editingAgency ? `Editar: ${editingAgency.nombre}` : 'Registrar Agencia'}</h2>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest hidden sm:block">{editingAgency ? 'Modifica los parámetros de la agencia' : 'Configuración inicial del canal operativo'}</p>
+                           <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">{editingAgency ? `Editar: ${editingAgency.nombre}` : 'Registrar Agencia'}</h2>
+                           <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wider hidden sm:block">{editingAgency ? 'Modifica los parámetros' : 'Configuración inicial'}</p>
                         </div>
                      </div>
-                     <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
-                        <X size={20} />
+                     <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-colors shrink-0">
+                        <X size={18} />
                      </button>
                   </div>
 
-                  {/* Scrollable Content */}
-                  <div className="overflow-y-auto custom-scrollbar p-6 sm:p-8 flex-1">
-                     <form id="agency-form" className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6" onSubmit={handleSaveAgency}>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Nombre de Agencia</label>
-                           <input
-                              type="text" required
-                              value={formData.nombre}
-                              onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
-                              placeholder="Ej. AG-UIO-CENTRO"
-                           />
-                        </div>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Dueño Responsable</label>
-                           <div className="relative">
-                              <select
-                                 value={selectedPersonaId}
-                                 required
-                                 onChange={e => {
-                                    const personaId = Number(e.target.value);
-                                    setSelectedPersonaId(personaId);
-                                    const persona = personas.find(p => p.id_persona === personaId);
-                                    if (persona) {
-                                       const nombreCompleto = `${persona.primer_nombre}${persona.segundo_nombre ? ' ' + persona.segundo_nombre : ''} ${persona.primer_apellido}${persona.segundo_apellido ? ' ' + persona.segundo_apellido : ''}`.trim();
-                                       setFormData({ 
-                                          ...formData, 
-                                          responsable: nombreCompleto,
-                                          contacto: persona.telefono || '',
-                                          email: persona.correo_electronico || ''
-                                       });
-                                       setTipoDocumento(persona.tipo_documento || '');
-                                       setNumeroDocumento(persona.numero_documento || '');
-                                    }
-                                 }}
-                                 disabled={isPersonasLoading}
-                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                 <option value={0}>{isPersonasLoading ? 'Cargando personas...' : 'Seleccione una persona'}</option>
-                                 {personas.map(p => {
-                                    const nombreCompleto = `${p.primer_nombre}${p.segundo_nombre ? ' ' + p.segundo_nombre : ''} ${p.primer_apellido}${p.segundo_apellido ? ' ' + p.segundo_apellido : ''}`.trim();
-                                    return <option key={p.id_persona} value={p.id_persona}>{nombreCompleto}</option>;
-                                 })}
-                              </select>
-                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
-                           </div>
-                        </div>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Contacto / Teléfono</label>
-                           <input
-                              type="text"
-                              value={formData.contacto}
-                              readOnly
-                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
-                              placeholder="Se completa automáticamente"
-                           />
-                        </div>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Correo Electrónico</label>
-                           <input
-                              type="email"
-                              value={formData.email}
-                              readOnly
-                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
-                              placeholder="Se completa automáticamente"
-                           />
-                        </div>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Tipo de Documento</label>
-                           <input
-                              type="text"
-                              value={tipoDocumento}
-                              readOnly
-                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
-                              placeholder="Se completa automáticamente"
-                           />
-                        </div>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Número de Documento</label>
-                           <input
-                              type="text"
-                              value={numeroDocumento}
-                              readOnly
-                              className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
-                              placeholder="Se completa automáticamente"
-                           />
-                        </div>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Casa de Apuestas</label>
-                           <div className="relative">
-                              <select
-                                 value={formData.casa_madre}
-                                 required
-                                 onChange={e => setFormData({ ...formData, casa_madre: Number(e.target.value) })}
-                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer"
-                              >
-                                 <option value={0}>Seleccione Casa</option>
-                                 {casas.map(b => <option key={b.id_casa} value={b.id_casa}>{b.nombre}</option>)}
-                              </select>
-                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
-                           </div>
-                        </div>
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Rake %</label>
-                           <input
-                              type="number" min={0} max={100} step={0.1}
-                              value={formData.rake_porcentaje}
-                              onChange={e => setFormData({ ...formData, rake_porcentaje: parseFloat(e.target.value) })}
-                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all"
-                           />
-                        </div>
-                        <div className="col-span-1 sm:col-span-2 space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Enlace Backoffice</label>
-                           <input
-                              type="url" placeholder="https://panel.ejemplo.com"
-                              value={formData.url_backoffice}
-                              onChange={e => setFormData({ ...formData, url_backoffice: e.target.value })}
-                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
-                           />
-                        </div>
-
-                        <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Body - ÚNICO elemento scrollable */}
+                  <div className="modal-body">
+                     <div className="p-5 sm:p-6">
+                        <form id="agency-form" className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6" onSubmit={handleSaveAgency}>
                            <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Arrastre</label>
-                              <div className="flex items-center justify-between bg-[#0a0b0e] border border-white/10 rounded-xl px-4 py-3">
-                                 <div>
-                                    <p className="text-[10px] font-black text-white uppercase tracking-widest">Permite arrastre</p>
-                                    <p className="text-[9px] text-text-secondary font-bold">Habilita saldos arrastrados en esta agencia</p>
-                                 </div>
-                                 <button
-                                    type="button"
-                                    onClick={() => setFormData(prev => ({ ...prev, tiene_arrastre: !prev.tiene_arrastre }))}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.tiene_arrastre ? 'bg-primary' : 'bg-slate-700'}`}
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Nombre de Agencia</label>
+                              <input
+                                 type="text" required
+                                 value={formData.nombre}
+                                 onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
+                                 placeholder="Ej. AG-UIO-CENTRO"
+                              />
+                           </div>
+                           <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Dueño Responsable</label>
+                              <div className="relative">
+                                 <select
+                                    value={selectedPersonaId}
+                                    required
+                                    onChange={e => {
+                                       const personaId = Number(e.target.value);
+                                       setSelectedPersonaId(personaId);
+                                       const persona = personas.find(p => p.id_persona === personaId);
+                                       if (persona) {
+                                          const nombreCompleto = `${persona.primer_nombre}${persona.segundo_nombre ? ' ' + persona.segundo_nombre : ''} ${persona.primer_apellido}${persona.segundo_apellido ? ' ' + persona.segundo_apellido : ''}`.trim();
+                                          setFormData({
+                                             ...formData,
+                                             responsable: nombreCompleto,
+                                             contacto: persona.telefono || '',
+                                             email: persona.correo_electronico || ''
+                                          });
+                                          setTipoDocumento(persona.tipo_documento || '');
+                                          setNumeroDocumento(persona.numero_documento || '');
+                                       }
+                                    }}
+                                    disabled={isPersonasLoading}
+                                    className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                  >
-                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${formData.tiene_arrastre ? 'translate-x-5' : 'translate-x-1'}`} />
-                                 </button>
+                                    <option value={0}>{isPersonasLoading ? 'Cargando personas...' : 'Seleccione una persona'}</option>
+                                    {personas.map(p => {
+                                       const nombreCompleto = `${p.primer_nombre}${p.segundo_nombre ? ' ' + p.segundo_nombre : ''} ${p.primer_apellido}${p.segundo_apellido ? ' ' + p.segundo_apellido : ''}`.trim();
+                                       return <option key={p.id_persona} value={p.id_persona}>{nombreCompleto}</option>;
+                                    })}
+                                 </select>
+                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                               </div>
                            </div>
-                        </div>
-
-                        {/* Asistente IA */}
-                        <div className="col-span-1 sm:col-span-2 p-5 bg-gradient-to-br from-primary/5 to-blue-500/5 border border-primary/20 rounded-2xl space-y-3 mt-2">
-                           <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                 <Sparkles className="text-primary" size={16} />
-                                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">Asistente Gemini</span>
+                           <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Contacto / Teléfono</label>
+                              <input
+                                 type="text"
+                                 value={formData.contacto}
+                                 readOnly
+                                 className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                                 placeholder="Se completa automáticamente"
+                              />
+                           </div>
+                           <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Correo Electrónico</label>
+                              <input
+                                 type="email"
+                                 value={formData.email}
+                                 readOnly
+                                 className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                                 placeholder="Se completa automáticamente"
+                              />
+                           </div>
+                           <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Tipo de Documento</label>
+                              <input
+                                 type="text"
+                                 value={tipoDocumento}
+                                 readOnly
+                                 className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                                 placeholder="Se completa automáticamente"
+                              />
+                           </div>
+                           <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Número de Documento</label>
+                              <input
+                                 type="text"
+                                 value={numeroDocumento}
+                                 readOnly
+                                 className="w-full bg-[#0a0b0e]/50 border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-slate-400 outline-none cursor-not-allowed"
+                                 placeholder="Se completa automáticamente"
+                              />
+                           </div>
+                           <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Casa de Apuestas</label>
+                              <div className="relative">
+                                 <select
+                                    value={formData.casa_madre}
+                                    required
+                                    onChange={e => setFormData({ ...formData, casa_madre: Number(e.target.value) })}
+                                    className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer"
+                                 >
+                                    <option value={0}>Seleccione Casa</option>
+                                    {casas.map(b => <option key={b.id_casa} value={b.id_casa}>{b.nombre}</option>)}
+                                 </select>
+                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                               </div>
-                              <span className="text-[8px] font-black bg-primary/20 text-primary px-2 py-0.5 rounded-md uppercase border border-primary/20">Beta</span>
                            </div>
-                           <div className="flex flex-wrap gap-2">
-                              <button type="button" className="px-3 py-2 bg-[#0a0b0e]/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[9px] font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5 group">
-                                 <BadgeCheck size={12} className="group-hover:text-primary transition-colors" /> Generar Credenciales
-                              </button>
-                              <button type="button" className="px-3 py-2 bg-[#0a0b0e]/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[9px] font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5 group">
-                                 <FileText size={12} className="group-hover:text-primary transition-colors" /> Redactar Nota
-                              </button>
+                           <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Rake %</label>
+                              <input
+                                 type="number" min={0} max={100} step={0.1}
+                                 value={formData.rake_porcentaje}
+                                 onChange={e => setFormData({ ...formData, rake_porcentaje: parseFloat(e.target.value) })}
+                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all"
+                              />
                            </div>
-                        </div>
+                           <div className="col-span-1 sm:col-span-2 space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Enlace Backoffice</label>
+                              <input
+                                 type="url" placeholder="https://panel.ejemplo.com"
+                                 value={formData.url_backoffice}
+                                 onChange={e => setFormData({ ...formData, url_backoffice: e.target.value })}
+                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600"
+                              />
+                           </div>
 
-                        {/* Planificación de Perfiles (solo en creación) */}
-                        {!editingAgency && (
-                           <div className="col-span-1 sm:col-span-2 space-y-4 mt-2">
-                              <div className="flex items-center justify-between p-4 bg-[#0a0b0e] border border-white/10 rounded-xl">
-                                 <div className="flex items-center gap-3">
-                                    <Calendar className="text-primary" size={20} />
+                           <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                 <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Arrastre</label>
+                                 <div className="flex items-center justify-between bg-[#0a0b0e] border border-white/10 rounded-xl px-4 py-3">
                                     <div>
-                                       <p className="text-xs font-black text-white uppercase tracking-wider">Planificación de Perfiles</p>
-                                       <p className="text-[9px] text-slate-400 font-bold">Establecer objetivo de creación (opcional)</p>
+                                       <p className="text-[10px] font-black text-white uppercase tracking-widest">Permite arrastre</p>
+                                       <p className="text-[9px] text-text-secondary font-bold">Habilita saldos arrastrados en esta agencia</p>
                                     </div>
+                                    <button
+                                       type="button"
+                                       onClick={() => setFormData(prev => ({ ...prev, tiene_arrastre: !prev.tiene_arrastre }))}
+                                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.tiene_arrastre ? 'bg-primary' : 'bg-slate-700'}`}
+                                    >
+                                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${formData.tiene_arrastre ? 'translate-x-5' : 'translate-x-1'}`} />
+                                    </button>
                                  </div>
-                                 <button
-                                    type="button"
-                                    onClick={() => setDefinirObjetivo(!definirObjetivo)}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${definirObjetivo ? 'bg-primary' : 'bg-slate-700'}`}
-                                 >
-                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${definirObjetivo ? 'translate-x-5' : 'translate-x-1'}`} />
+                              </div>
+                           </div>
+
+                           {/* Asistente IA */}
+                           <div className="col-span-1 sm:col-span-2 p-5 bg-gradient-to-br from-primary/5 to-blue-500/5 border border-primary/20 rounded-2xl space-y-3 mt-2">
+                              <div className="flex items-center justify-between">
+                                 <div className="flex items-center gap-2">
+                                    <Sparkles className="text-primary" size={16} />
+                                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">Asistente Gemini</span>
+                                 </div>
+                                 <span className="text-[8px] font-black bg-primary/20 text-primary px-2 py-0.5 rounded-md uppercase border border-primary/20">Beta</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                 <button type="button" className="px-3 py-2 bg-[#0a0b0e]/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[9px] font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5 group">
+                                    <BadgeCheck size={12} className="group-hover:text-primary transition-colors" /> Generar Credenciales
+                                 </button>
+                                 <button type="button" className="px-3 py-2 bg-[#0a0b0e]/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[9px] font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5 group">
+                                    <FileText size={12} className="group-hover:text-primary transition-colors" /> Redactar Nota
                                  </button>
                               </div>
+                           </div>
 
-                              {definirObjetivo && (
-                                 <div className="p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/20 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <div className="flex items-start gap-2">
-                                       <Info size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
-                                       <p className="text-[9px] text-slate-300 leading-relaxed">
-                                          Define cuántos perfiles se deben crear y en qué plazo. Esto aparecerá en el panel de "Perfiles pendientes".
-                                       </p>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                       <div className="space-y-1.5">
-                                          <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Cantidad Objetivo</label>
-                                          <input
-                                             type="number"
-                                             min={1}
-                                             max={1000}
-                                             value={objetivoData.cantidad_objetivo}
-                                             onChange={e => {
-                                                const value = parseInt(e.target.value) || 1;
-                                                setObjetivoData({ ...objetivoData, cantidad_objetivo: Math.min(Math.max(value, 1), 1000) });
-                                             }}
-                                             className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all"
-                                             placeholder="Ej: 5"
-                                          />
-                                          <p className="text-[8px] text-slate-500 ml-1">Perfiles a crear (1-1000)</p>
-                                       </div>
-
-                                       <div className="space-y-1.5">
-                                          <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Plazo (días)</label>
-                                          <input
-                                             type="number"
-                                             min={1}
-                                             max={365}
-                                             value={objetivoData.plazo_dias}
-                                             onChange={e => {
-                                                const value = parseInt(e.target.value) || 1;
-                                                setObjetivoData({ ...objetivoData, plazo_dias: Math.min(Math.max(value, 1), 365) });
-                                             }}
-                                             className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all"
-                                             placeholder="Ej: 30"
-                                          />
-                                          <p className="text-[8px] text-slate-500 ml-1">Días para completar (1-365)</p>
-                                       </div>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                       <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Estado Inicial de Perfiles</label>
-                                       <div className="relative">
-                                          <select
-                                             value={objetivoData.estado_inicial_perfiles}
-                                             onChange={e => setObjetivoData({ ...objetivoData, estado_inicial_perfiles: e.target.value as 'ACTIVO' | 'INACTIVO' })}
-                                             className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all appearance-none cursor-pointer"
-                                          >
-                                             <option value="ACTIVO">Activo</option>
-                                             <option value="INACTIVO">Inactivo</option>
-                                          </select>
-                                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
-                                       </div>
-                                       <p className="text-[8px] text-slate-500 ml-1">Estado que tendrán los perfiles al crearse</p>
-                                    </div>
-
-                                    <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-start gap-2">
-                                       <Clock size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                           {/* Planificación de Perfiles (solo en creación) */}
+                           {!editingAgency && (
+                              <div className="col-span-1 sm:col-span-2 space-y-4 mt-2">
+                                 <div className="flex items-center justify-between p-4 bg-[#0a0b0e] border border-white/10 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                       <Calendar className="text-primary" size={20} />
                                        <div>
-                                          <p className="text-[9px] font-bold text-green-400">Objetivo establecido</p>
-                                          <p className="text-[9px] text-slate-300 mt-0.5">
-                                             Crear <span className="font-black text-white">{objetivoData.cantidad_objetivo} perfiles</span> en <span className="font-black text-white">{objetivoData.plazo_dias} días</span>
+                                          <p className="text-xs font-black text-white uppercase tracking-wider">Planificación de Perfiles</p>
+                                          <p className="text-[9px] text-slate-400 font-bold">Establecer objetivo de creación (opcional)</p>
+                                       </div>
+                                    </div>
+                                    <button
+                                       type="button"
+                                       onClick={() => setDefinirObjetivo(!definirObjetivo)}
+                                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${definirObjetivo ? 'bg-primary' : 'bg-slate-700'}`}
+                                    >
+                                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${definirObjetivo ? 'translate-x-5' : 'translate-x-1'}`} />
+                                    </button>
+                                 </div>
+
+                                 {definirObjetivo && (
+                                    <div className="p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/20 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                       <div className="flex items-start gap-2">
+                                          <Info size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                                          <p className="text-[9px] text-slate-300 leading-relaxed">
+                                             Define cuántos perfiles se deben crear y en qué plazo. Esto aparecerá en el panel de "Perfiles pendientes".
                                           </p>
                                        </div>
+
+                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                          <div className="space-y-1.5">
+                                             <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Cantidad Objetivo</label>
+                                             <input
+                                                type="number"
+                                                min={1}
+                                                max={1000}
+                                                value={objetivoData.cantidad_objetivo}
+                                                onChange={e => {
+                                                   const value = parseInt(e.target.value) || 1;
+                                                   setObjetivoData({ ...objetivoData, cantidad_objetivo: Math.min(Math.max(value, 1), 1000) });
+                                                }}
+                                                className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all"
+                                                placeholder="Ej: 5"
+                                             />
+                                             <p className="text-[8px] text-slate-500 ml-1">Perfiles a crear (1-1000)</p>
+                                          </div>
+
+                                          <div className="space-y-1.5">
+                                             <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Plazo (días)</label>
+                                             <input
+                                                type="number"
+                                                min={1}
+                                                max={365}
+                                                value={objetivoData.plazo_dias}
+                                                onChange={e => {
+                                                   const value = parseInt(e.target.value) || 1;
+                                                   setObjetivoData({ ...objetivoData, plazo_dias: Math.min(Math.max(value, 1), 365) });
+                                                }}
+                                                className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all"
+                                                placeholder="Ej: 30"
+                                             />
+                                             <p className="text-[8px] text-slate-500 ml-1">Días para completar (1-365)</p>
+                                          </div>
+                                       </div>
+
+                                       <div className="space-y-1.5">
+                                          <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Estado Inicial de Perfiles</label>
+                                          <div className="relative">
+                                             <select
+                                                value={objetivoData.estado_inicial_perfiles}
+                                                onChange={e => setObjetivoData({ ...objetivoData, estado_inicial_perfiles: e.target.value as 'ACTIVO' | 'INACTIVO' })}
+                                                className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 outline-none transition-all appearance-none cursor-pointer"
+                                             >
+                                                <option value="ACTIVO">Activo</option>
+                                                <option value="INACTIVO">Inactivo</option>
+                                             </select>
+                                             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                                          </div>
+                                          <p className="text-[8px] text-slate-500 ml-1">Estado que tendrán los perfiles al crearse</p>
+                                       </div>
+
+                                       <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-start gap-2">
+                                          <Clock size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                                          <div>
+                                             <p className="text-[9px] font-bold text-green-400">Objetivo establecido</p>
+                                             <p className="text-[9px] text-slate-300 mt-0.5">
+                                                Crear <span className="font-black text-white">{objetivoData.cantidad_objetivo} perfiles</span> en <span className="font-black text-white">{objetivoData.plazo_dias} días</span>
+                                             </p>
+                                          </div>
+                                       </div>
                                     </div>
-                                 </div>
-                              )}
-                           </div>
-                        )}
-                     </form>
+                                 )}
+                              </div>
+                           )}
+                        </form>
+                     </div>
                   </div>
 
-                  {/* Footer */}
-                  <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-[#0a0b0e]/30 shrink-0">
-                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                  {/* Footer - SIEMPRE visible */}
+                  <div className="modal-footer flex justify-end gap-3">
+                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-[10px] font-bold uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
                         Cancelar
                      </button>
-                     <button form="agency-form" type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-8 py-2.5 bg-primary text-white text-[10px] font-black uppercase rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                     <button form="agency-form" type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-[10px] font-bold uppercase rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                         {isSubmitting ? <span className="animate-spin"><History size={16} /></span> : (editingAgency ? <Save size={16} /> : <Plus size={16} />)}
-                        <span>{isSubmitting ? 'Guardando...' : (editingAgency ? 'Actualizar Agencia' : 'Guardar Agencia')}</span>
+                        <span>{isSubmitting ? 'Guardando...' : (editingAgency ? 'Actualizar' : 'Guardar')}</span>
                      </button>
                   </div>
                </div>
@@ -1345,143 +1418,145 @@ const OperationalNetwork: React.FC = () => {
 
          {/* --- MODAL (NUEVO PERFIL) --- */}
          {isProfileModalOpen && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-               <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={closeProfileModal} />
-               <div className="relative w-full max-w-lg bg-[#0f1115] border border-white/10 rounded-[2rem] shadow-2xl shadow-primary/5 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-5 fade-in duration-300">
+            <div className="modal-overlay">
+               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={closeProfileModal} />
+               <div className="modal-panel modal-lg animate-in zoom-in-95 slide-in-from-bottom-4 fade-in duration-200">
 
-                  {/* Header */}
-                  <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#151b26]/50 backdrop-blur-xl shrink-0">
-                     <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-gradient-to-br from-primary to-blue-600 rounded-2xl text-white shadow-lg shadow-primary/20 ring-1 ring-white/10">
-                           <UserPlus size={20} />
+                  {/* Header - SIEMPRE visible */}
+                  <div className="modal-header flex justify-between items-center">
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 sm:p-2.5 bg-gradient-to-br from-primary to-blue-600 rounded-xl text-white shadow-lg shadow-primary/20 shrink-0">
+                           <UserPlus size={18} />
                         </div>
-                        <div>
-                           <h2 className="text-lg font-black text-white uppercase tracking-tight">Nuevo Perfil Operativo</h2>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pl-0.5">Asignando a: {selectedAgency?.nombre}</p>
+                        <div className="min-w-0">
+                           <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">Nuevo Perfil Operativo</h2>
+                           <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wider truncate">Asignando a: {selectedAgency?.nombre}</p>
                         </div>
                      </div>
-                     <button onClick={closeProfileModal} className="p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
-                        <X size={20} />
+                     <button onClick={closeProfileModal} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-colors shrink-0">
+                        <X size={18} />
                      </button>
                   </div>
 
-                  {/* Form */}
-                  <div className="overflow-y-auto custom-scrollbar p-6 sm:p-8 flex-1">
-                     <form id="profile-form" className="grid grid-cols-1 gap-5" onSubmit={handleCreateProfile}>
+                  {/* Body - ÚNICO elemento scrollable */}
+                  <div className="modal-body">
+                     <div className="p-5 sm:p-6">
+                        <form id="profile-form" className="grid grid-cols-1 gap-5" onSubmit={handleCreateProfile}>
 
-                        {/* 1. Persona Selection */}
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Persona (Identidad Real)</label>
-                           <div className="relative">
-                              <select
-                                 required
-                                 value={profileForm.persona_id}
-                                 onChange={e => setProfileForm({ ...profileForm, persona_id: Number(e.target.value) })}
-                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer"
-                                 disabled={isPersonasLoading}
-                              >
-                                 <option value={0}>Seleccione una persona...</option>
-                                 {personas.map(p => (
-                                    <option key={p.id_persona} value={p.id_persona}>
-                                       {p.primer_nombre} {p.primer_apellido} - {p.numero_documento}
-                                    </option>
-                                 ))}
-                              </select>
-                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
-                           </div>
-                           {isPersonasLoading && <p className="text-[9px] text-primary animate-pulse ml-1">Cargando identidades...</p>}
-                        </div>
-
-                        {/* 2. User Credentials */}
-                        <div className="grid grid-cols-2 gap-4">
+                           {/* 1. Persona Selection */}
                            <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Usuario Bookie</label>
-                              <input
-                                 type="text" required
-                                 value={profileForm.username}
-                                 onChange={e => setProfileForm({ ...profileForm, username: e.target.value })}
-                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all"
-                              />
-                           </div>
-                           <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Contraseña</label>
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Persona (Identidad Real)</label>
                               <div className="relative">
+                                 <select
+                                    required
+                                    value={profileForm.persona_id}
+                                    onChange={e => setProfileForm({ ...profileForm, persona_id: Number(e.target.value) })}
+                                    className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all appearance-none cursor-pointer"
+                                    disabled={isPersonasLoading}
+                                 >
+                                    <option value={0}>Seleccione una persona...</option>
+                                    {personas.map(p => (
+                                       <option key={p.id_persona} value={p.id_persona}>
+                                          {p.primer_nombre} {p.primer_apellido} - {p.numero_documento}
+                                       </option>
+                                    ))}
+                                 </select>
+                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                              </div>
+                              {isPersonasLoading && <p className="text-[9px] text-primary animate-pulse ml-1">Cargando identidades...</p>}
+                           </div>
+
+                           {/* 2. User Credentials */}
+                           <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                 <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Usuario Bookie</label>
                                  <input
                                     type="text" required
-                                    value={profileForm.password}
-                                    onChange={e => setProfileForm({ ...profileForm, password: e.target.value })}
-                                    className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all font-mono"
+                                    value={profileForm.username}
+                                    onChange={e => setProfileForm({ ...profileForm, username: e.target.value })}
+                                    className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all"
                                  />
-                                 <button type="button" onClick={() => setProfileForm(p => ({ ...p, password: Math.random().toString(36).slice(-10) }))} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:text-primary text-slate-500 transition-colors">
-                                    <RefreshCw size={12} />
-                                 </button>
+                              </div>
+                              <div className="space-y-1.5">
+                                 <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Contraseña</label>
+                                 <div className="relative">
+                                    <input
+                                       type="text" required
+                                       value={profileForm.password}
+                                       onChange={e => setProfileForm({ ...profileForm, password: e.target.value })}
+                                       className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all font-mono"
+                                    />
+                                    <button type="button" onClick={() => setProfileForm(p => ({ ...p, password: Math.random().toString(36).slice(-10) }))} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:text-primary text-slate-500 transition-colors">
+                                       <RefreshCw size={12} />
+                                    </button>
+                                 </div>
                               </div>
                            </div>
-                        </div>
 
-                        {/* 3. Configuration */}
-                        <div className="grid grid-cols-2 gap-4">
+                           {/* 3. Configuration */}
+                           <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                 <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Tipo Jugador</label>
+                                 <select
+                                    value={profileForm.tipo_jugador}
+                                    onChange={e => setProfileForm({ ...profileForm, tipo_jugador: e.target.value })}
+                                    className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all cursor-pointer"
+                                 >
+                                    <option value="PROFESIONAL">Profesional</option>
+                                    <option value="RECREATIVO">Recreativo</option>
+                                    <option value="CASUAL">Casual</option>
+                                    <option value="HIGH_ROLLER">High Roller</option>
+                                 </select>
+                              </div>
+                              <div className="space-y-1.5">
+                                 <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Nivel Cuenta</label>
+                                 <select
+                                    value={profileForm.nivel_cuenta}
+                                    onChange={e => setProfileForm({ ...profileForm, nivel_cuenta: e.target.value })}
+                                    className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all cursor-pointer"
+                                 >
+                                    <option value="BRONCE">Bronce</option>
+                                    <option value="PLATA">Plata</option>
+                                    <option value="ORO">Oro</option>
+                                    <option value="PLATINO">Platino</option>
+                                    <option value="DIAMANTE">Diamante</option>
+                                 </select>
+                              </div>
+                           </div>
+
                            <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Tipo Jugador</label>
-                              <select
-                                 value={profileForm.tipo_jugador}
-                                 onChange={e => setProfileForm({ ...profileForm, tipo_jugador: e.target.value })}
-                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all cursor-pointer"
-                              >
-                                 <option value="PROFESIONAL">Profesional</option>
-                                 <option value="RECREATIVO">Recreativo</option>
-                                 <option value="CASUAL">Casual</option>
-                                 <option value="HIGH_ROLLER">High Roller</option>
-                              </select>
+                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Notas Iniciales</label>
+                              <textarea
+                                 rows={2}
+                                 value={profileForm.notes}
+                                 onChange={e => setProfileForm({ ...profileForm, notes: e.target.value })}
+                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600 resize-none"
+                                 placeholder="Observaciones sobre la creación..."
+                              />
                            </div>
-                           <div className="space-y-1.5">
-                              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Nivel Cuenta</label>
-                              <select
-                                 value={profileForm.nivel_cuenta}
-                                 onChange={e => setProfileForm({ ...profileForm, nivel_cuenta: e.target.value })}
-                                 className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all cursor-pointer"
-                              >
-                                 <option value="BRONCE">Bronce</option>
-                                 <option value="PLATA">Plata</option>
-                                 <option value="ORO">Oro</option>
-                                 <option value="PLATINO">Platino</option>
-                                 <option value="DIAMANTE">Diamante</option>
-                              </select>
+
+                           <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-3">
+                              <Info size={16} className="text-primary shrink-0 mt-0.5" />
+                              <div className="space-y-1">
+                                 <p className="text-[10px] font-bold text-white">Verificación Automática</p>
+                                 <p className="text-[9px] text-slate-400 leading-relaxed">
+                                    Al crear el perfil, se generará una cuenta de usuario interna. Asegúrese de que las credenciales coincidan con las registradas en la casa de apuestas para la sincronización.
+                                 </p>
+                              </div>
                            </div>
-                        </div>
 
-                        <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-wider">Notas Iniciales</label>
-                           <textarea
-                              rows={2}
-                              value={profileForm.notes}
-                              onChange={e => setProfileForm({ ...profileForm, notes: e.target.value })}
-                              className="w-full bg-[#0a0b0e] border border-white/10 rounded-xl py-3 px-4 text-xs font-bold text-white focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none transition-all placeholder:text-slate-600 resize-none"
-                              placeholder="Observaciones sobre la creación..."
-                           />
-                        </div>
-
-                        <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-3">
-                           <Info size={16} className="text-primary shrink-0 mt-0.5" />
-                           <div className="space-y-1">
-                              <p className="text-[10px] font-bold text-white">Verificación Automática</p>
-                              <p className="text-[9px] text-slate-400 leading-relaxed">
-                                 Al crear el perfil, se generará una cuenta de usuario interna. Asegúrese de que las credenciales coincidan con las registradas en la casa de apuestas para la sincronización.
-                              </p>
-                           </div>
-                        </div>
-
-                     </form>
+                        </form>
+                     </div>
                   </div>
 
-                  {/* Footer */}
-                  <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-[#0a0b0e]/30 shrink-0">
-                     <button type="button" onClick={closeProfileModal} className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                  {/* Footer - SIEMPRE visible */}
+                  <div className="modal-footer flex justify-end gap-3">
+                     <button type="button" onClick={closeProfileModal} className="px-5 py-2.5 text-[10px] font-bold uppercase text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
                         Cancelar
                      </button>
-                     <button form="profile-form" type="submit" disabled={isSubmitting || profileForm.persona_id === 0} className="flex items-center gap-2 px-8 py-2.5 bg-primary text-white text-[10px] font-black uppercase rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                     <button form="profile-form" type="submit" disabled={isSubmitting || profileForm.persona_id === 0} className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-[10px] font-bold uppercase rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                         {isSubmitting ? <span className="animate-spin"><History size={16} /></span> : <Save size={16} />}
-                        <span>{isSubmitting ? 'Registrando...' : 'Confirmar Creación'}</span>
+                        <span>{isSubmitting ? 'Registrando...' : 'Confirmar'}</span>
                      </button>
                   </div>
 
@@ -1491,19 +1566,19 @@ const OperationalNetwork: React.FC = () => {
 
          {/* --- MODAL DETALLES AGENCIA --- */}
          {selectedAgencyForDetails && (
-            <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 animate-in fade-in duration-200">
-               <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setSelectedAgencyForDetails(null)} />
-               <div className="relative w-full max-w-2xl bg-[#0d0d0d] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-                  
-                  {/* Header */}
-                  <div className="px-5 sm:px-7 py-4 sm:py-5 border-b border-white/10 bg-[#0a0a0a] flex justify-between items-start gap-3">
-                     <div className="flex items-start gap-3">
-                        <div className="p-2.5 bg-primary/20 rounded-2xl border border-primary/40 text-primary shadow-lg shadow-primary/10">
+            <div className="modal-overlay" style={{ zIndex: 250 }}>
+               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedAgencyForDetails(null)} />
+               <div className="modal-panel modal-2xl animate-in zoom-in-95 slide-in-from-bottom-4 fade-in duration-200">
+
+                  {/* Header - SIEMPRE visible */}
+                  <div className="modal-header flex justify-between items-start gap-3">
+                     <div className="flex items-start gap-3 min-w-0">
+                        <div className="p-2.5 bg-primary/20 rounded-2xl border border-primary/40 text-primary shadow-lg shadow-primary/10 shrink-0">
                            <Store size={24} />
                         </div>
-                        <div>
-                           <h2 className="text-xl font-black text-white tracking-tight mb-1">{selectedAgencyForDetails.nombre}</h2>
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">
+                        <div className="min-w-0">
+                           <h2 className="text-xl font-black text-white tracking-tight mb-1 truncate">{selectedAgencyForDetails.nombre}</h2>
+                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 truncate">
                               {casas.find(c => c.id_casa === selectedAgencyForDetails.casa_madre)?.nombre || 'Casa Madre'}
                            </p>
                            <div className="flex items-center gap-2 mt-3">
@@ -1514,338 +1589,348 @@ const OperationalNetwork: React.FC = () => {
                            </div>
                         </div>
                      </div>
-                     <button 
+                     <button
                         onClick={() => setSelectedAgencyForDetails(null)}
-                        className="p-2.5 hover:bg-white/5 rounded-2xl text-slate-500 hover:text-white transition-all"
+                        className="p-2.5 hover:bg-white/5 rounded-2xl text-slate-500 hover:text-white transition-all shrink-0"
                      >
                         <X size={24} />
                      </button>
                   </div>
 
-                  {/* Content */}
-                  <div className="p-4 sm:p-6 space-y-5 max-h-[65vh] overflow-y-auto custom-scrollbar">
-                     
-                     {/* Información Principal - Grid completo */}
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="p-3 bg-[#0a0a0a] border border-white/5 rounded-xl">
-                           <div className="flex items-center gap-2 mb-3">
-                              <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
-                                 <Users size={16} />
+                  {/* Body - ÚNICO elemento scrollable */}
+                  <div className="modal-body">
+                     <div className="p-4 sm:p-6 space-y-5">
+
+                        {/* Información Principal - Grid completo */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                           <div className="p-3 bg-[#0a0a0a] border border-white/5 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                 <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
+                                    <Users size={16} />
+                                 </div>
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Responsable</p>
                               </div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Responsable</p>
+                              <p className="text-base font-black text-white">{selectedAgencyForDetails.responsable}</p>
                            </div>
-                           <p className="text-base font-black text-white">{selectedAgencyForDetails.responsable}</p>
-                        </div>
 
-                        <div className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl">
-                           <div className="flex items-center gap-2 mb-3">
-                              <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
-                                 <Activity size={16} />
+                           <div className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                 <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
+                                    <Activity size={16} />
+                                 </div>
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Contacto</p>
                               </div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Contacto</p>
+                              <p className="text-base font-black text-white">{selectedAgencyForDetails.contacto || 'No especificado'}</p>
                            </div>
-                           <p className="text-base font-black text-white">{selectedAgencyForDetails.contacto || 'No especificado'}</p>
-                        </div>
 
-                        <div className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl">
-                           <div className="flex items-center gap-2 mb-3">
-                              <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
-                                 <Settings2 size={16} />
+                           <div className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                 <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
+                                    <Settings2 size={16} />
+                                 </div>
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email</p>
                               </div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email</p>
+                              <p className="text-sm font-bold text-white truncate">{selectedAgencyForDetails.email || 'No especificado'}</p>
                            </div>
-                           <p className="text-sm font-bold text-white truncate">{selectedAgencyForDetails.email || 'No especificado'}</p>
-                        </div>
 
-                        <div className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl">
-                           <div className="flex items-center gap-2 mb-3">
-                              <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
-                                 <BadgeCheck size={16} />
+                           <div className="p-5 bg-[#0a0a0a] border border-white/5 rounded-2xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                 <div className="p-1.5 bg-primary/20 rounded-lg text-primary">
+                                    <BadgeCheck size={16} />
+                                 </div>
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Perfiles Totales</p>
                               </div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Perfiles Totales</p>
+                              <p className="text-2xl font-black text-white">{(selectedAgencyForDetails as any).perfiles_totales || 0}</p>
                            </div>
-                           <p className="text-2xl font-black text-white">{(selectedAgencyForDetails as any).perfiles_totales || 0}</p>
                         </div>
-                     </div>
 
-                     {/* Métricas Financieras */}
-                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl border border-primary/20">
-                        <div className="text-center">
-                           <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-2">GGR Casa</p>
-                           <p className="text-3xl font-black text-white tracking-tighter mb-1">${((selectedAgencyForDetails as any).ggr || 0).toLocaleString()}</p>
-                           <p className="text-[8px] text-slate-500 font-bold">Gross Gaming Revenue</p>
-                        </div>
-                        <div className="text-center">
-                           <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-2">Rake Comisión</p>
-                           <p className="text-3xl font-black text-white tracking-tighter mb-1">{selectedAgencyForDetails.rake_porcentaje}%</p>
-                           <p className="text-[9px] text-slate-500 font-bold">Comisión aplicada</p>
-                        </div>
-                        <div className="text-center">
-                           <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">Estado Operativo</p>
-                           <div className="flex items-center justify-center gap-2">
-                              <CheckCircle2 size={24} className={selectedAgencyForDetails.activo ? 'text-emerald-500' : 'text-rose-500'} />
-                              <p className="text-2xl font-black text-white">{selectedAgencyForDetails.activo ? 'Online' : 'Offline'}</p>
+                        {/* Métricas Financieras */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl border border-primary/20">
+                           <div className="text-center">
+                              <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-2">GGR Casa</p>
+                              <p className="text-3xl font-black text-white tracking-tighter mb-1">${((selectedAgencyForDetails as any).ggr || 0).toLocaleString()}</p>
+                              <p className="text-[8px] text-slate-500 font-bold">Gross Gaming Revenue</p>
                            </div>
-                           <p className="text-[9px] text-slate-500 font-bold mt-2">Sistema operacional</p>
+                           <div className="text-center">
+                              <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-2">Rake Comisión</p>
+                              <p className="text-3xl font-black text-white tracking-tighter mb-1">{selectedAgencyForDetails.rake_porcentaje}%</p>
+                              <p className="text-[9px] text-slate-500 font-bold">Comisión aplicada</p>
+                           </div>
+                           <div className="text-center">
+                              <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">Estado Operativo</p>
+                              <div className="flex items-center justify-center gap-2">
+                                 <CheckCircle2 size={24} className={selectedAgencyForDetails.activo ? 'text-emerald-500' : 'text-rose-500'} />
+                                 <p className="text-2xl font-black text-white">{selectedAgencyForDetails.activo ? 'Online' : 'Offline'}</p>
+                              </div>
+                              <p className="text-[9px] text-slate-500 font-bold mt-2">Sistema operacional</p>
+                           </div>
                         </div>
-                     </div>
 
-                     {/* Información Adicional Completa - TODOS LOS CAMPOS */}
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
-                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ID Agencia</p>
-                           <p className="text-sm font-black text-white font-mono">#{selectedAgencyForDetails.id_agencia}</p>
-                        </div>
-
-                        <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
-                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Casa Madre</p>
-                           <p className="text-sm font-bold text-white">{casas.find(c => c.id_casa === selectedAgencyForDetails.casa_madre)?.nombre || 'No especificada'}</p>
-                        </div>
-
-                        {(selectedAgencyForDetails as any).ubicacion && (
+                        {/* Información Adicional Completa - TODOS LOS CAMPOS */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Ubicación</p>
-                              <p className="text-sm font-bold text-white">{(selectedAgencyForDetails as any).ubicacion}</p>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ID Agencia</p>
+                              <p className="text-sm font-black text-white font-mono">#{selectedAgencyForDetails.id_agencia}</p>
                            </div>
-                        )}
 
-                        {selectedAgencyForDetails.url_backoffice && (
                            <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">URL Backoffice</p>
-                              <a href={selectedAgencyForDetails.url_backoffice} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary hover:text-primary-hover flex items-center gap-1.5 truncate">
-                                 <ExternalLink size={14} /> Ver backoffice
-                              </a>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Casa Madre</p>
+                              <p className="text-sm font-bold text-white">{casas.find(c => c.id_casa === selectedAgencyForDetails.casa_madre)?.nombre || 'No especificada'}</p>
                            </div>
-                        )}
 
-                        <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
-                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Arrastre</p>
-                           <div className="flex items-center gap-2">
-                              {selectedAgencyForDetails.tiene_arrastre ? (
-                                 <>
-                                    <CheckCircle2 size={16} className="text-emerald-500" />
-                                    <span className="text-xs font-bold text-emerald-500">Habilitado</span>
-                                 </>
+                           {(selectedAgencyForDetails as any).ubicacion && (
+                              <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
+                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Ubicación</p>
+                                 <p className="text-sm font-bold text-white">{(selectedAgencyForDetails as any).ubicacion}</p>
+                              </div>
+                           )}
+
+                           {selectedAgencyForDetails.url_backoffice && (
+                              <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
+                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">URL Backoffice</p>
+                                 <a href={selectedAgencyForDetails.url_backoffice} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary hover:text-primary-hover flex items-center gap-1.5 truncate">
+                                    <ExternalLink size={14} /> Ver backoffice
+                                 </a>
+                              </div>
+                           )}
+
+                           <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Arrastre</p>
+                              <div className="flex items-center gap-2">
+                                 {selectedAgencyForDetails.tiene_arrastre ? (
+                                    <>
+                                       <CheckCircle2 size={16} className="text-emerald-500" />
+                                       <span className="text-xs font-bold text-emerald-500">Habilitado</span>
+                                    </>
+                                 ) : activeTab === 'perfiles' ? (
+                                    <ProfilesView isActive={activeTab === 'perfiles'} />
+                                 ) : activeTab === 'usuarios' ? (
+                                    <UsersView isActive={activeTab === 'usuarios'} />
+                                 ) : (
+                                    <>
+                                       <X size={16} className="text-slate-500" />
+                                       <span className="text-xs font-bold text-slate-500">Deshabilitado</span>
+                                    </>
+                                 )}
+                              </div>
+                           </div>
+
+                           {(selectedAgencyForDetails as any).fecha_registro && (
+                              <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
+                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Fecha Registro</p>
+                                 <p className="text-xs font-bold text-white">{new Date((selectedAgencyForDetails as any).fecha_registro).toLocaleString('es-ES')}</p>
+                              </div>
+                           )}
+                        </div>
+
+                        {/* NUEVA SECCIÓN: Objetivos de Creación de Perfiles */}
+                        <div className="mt-6 p-5 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-2xl">
+                           <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                                 <div className="p-2 bg-blue-500/20 rounded-xl">
+                                    <Calendar size={18} className="text-blue-400" />
+                                 </div>
+                                 <div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-wider">Objetivos de Perfiles</h3>
+                                    <p className="text-[9px] text-slate-400 font-bold">Planificación de creación</p>
+                                 </div>
+                              </div>
+                              <button
+                                 onClick={() => setShowNuevoObjetivoDrawer(!showNuevoObjetivoDrawer)}
+                                 className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                              >
+                                 <Plus size={14} />
+                                 Nuevo objetivo
+                              </button>
+                           </div>
+
+                           {/* Formulario para nuevo objetivo (colapsable) */}
+                           {showNuevoObjetivoDrawer && (
+                              <div className="mb-4 p-4 bg-black/30 border border-blue-500/20 rounded-xl space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                 <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                          Cantidad de Perfiles
+                                       </label>
+                                       <input
+                                          type="number"
+                                          min="1"
+                                          max="1000"
+                                          value={nuevoObjetivoDrawerData.cantidad_objetivo}
+                                          onChange={(e) => {
+                                             const value = parseInt(e.target.value) || 1;
+                                             setNuevoObjetivoDrawerData(prev => ({
+                                                ...prev,
+                                                cantidad_objetivo: Math.min(Math.max(value, 1), 1000)
+                                             }));
+                                          }}
+                                          className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
+                                       />
+                                       <p className="text-[8px] text-slate-500 mt-1">Máximo 1000</p>
+                                    </div>
+                                    <div>
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                          Plazo (días)
+                                       </label>
+                                       <input
+                                          type="number"
+                                          min="1"
+                                          max="365"
+                                          value={nuevoObjetivoDrawerData.plazo_dias}
+                                          onChange={(e) => {
+                                             const value = parseInt(e.target.value) || 1;
+                                             setNuevoObjetivoDrawerData(prev => ({
+                                                ...prev,
+                                                plazo_dias: Math.min(Math.max(value, 1), 365)
+                                             }));
+                                          }}
+                                          className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
+                                       />
+                                       <p className="text-[8px] text-slate-500 mt-1">Máximo 365 días</p>
+                                    </div>
+                                 </div>
+                                 <div>
+                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                       Estado Inicial de Perfiles
+                                    </label>
+                                    <select
+                                       value={nuevoObjetivoDrawerData.estado_inicial_perfiles}
+                                       onChange={(e) => setNuevoObjetivoDrawerData(prev => ({
+                                          ...prev,
+                                          estado_inicial_perfiles: e.target.value as 'ACTIVO' | 'INACTIVO'
+                                       }))}
+                                       className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
+                                    >
+                                       <option value="ACTIVO">Activo</option>
+                                       <option value="INACTIVO">Inactivo</option>
+                                    </select>
+                                 </div>
+                                 <div className="flex gap-2 pt-2">
+                                    <button
+                                       onClick={handleCrearObjetivoDrawer}
+                                       disabled={isSubmitting}
+                                       className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-500/50 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                       {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                       {isSubmitting ? 'Creando...' : 'Crear Objetivo'}
+                                    </button>
+                                    <button
+                                       onClick={() => setShowNuevoObjetivoDrawer(false)}
+                                       className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 text-xs font-bold rounded-lg transition-all"
+                                    >
+                                       Cancelar
+                                    </button>
+                                 </div>
+                              </div>
+                           )}
+
+                           {/* Lista de objetivos existentes */}
+                           <div className="space-y-2">
+                              {loadingHistorial ? (
+                                 <div className="text-center py-6">
+                                    <RefreshCw size={20} className="animate-spin text-blue-400 mx-auto mb-2" />
+                                    <p className="text-xs text-slate-400 font-bold">Cargando objetivos...</p>
+                                 </div>
+                              ) : historialObjetivos.length === 0 ? (
+                                 <div className="text-center py-6">
+                                    <Calendar size={32} className="text-slate-600 mx-auto mb-2" />
+                                    <p className="text-xs text-slate-500 font-bold">No hay objetivos definidos</p>
+                                    <p className="text-[9px] text-slate-600 mt-1">Crea uno usando el botón de arriba</p>
+                                 </div>
+                              ) : activeTab === 'perfiles' ? (
+                                 <ProfilesView isActive={activeTab === 'perfiles'} />
+                              ) : activeTab === 'usuarios' ? (
+                                 <UsersView isActive={activeTab === 'usuarios'} />
                               ) : (
-                                 <>
-                                    <X size={16} className="text-slate-500" />
-                                    <span className="text-xs font-bold text-slate-500">Deshabilitado</span>
-                                 </>
+                                 historialObjetivos.map(obj => {
+                                    const fechaLimite = new Date(obj.fecha_limite);
+                                    const hoy = new Date();
+                                    const diasRestantes = Math.ceil((fechaLimite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+
+                                    let statusColor = 'bg-green-500/20 text-green-400 border-green-500/30';
+                                    let statusText = 'En progreso';
+
+                                    if (obj.perfiles_restantes === 0) {
+                                       statusColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                                       statusText = '✓ Completado';
+                                    } else if (diasRestantes < 0) {
+                                       statusColor = 'bg-red-500/20 text-red-400 border-red-500/30';
+                                       statusText = '⚠ Vencido';
+                                    } else if (diasRestantes < 7) {
+                                       statusColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+                                       statusText = '⏰ Urgente';
+                                    }
+
+                                    return (
+                                       <div
+                                          key={obj.id_objetivo}
+                                          className="p-3 bg-black/40 border border-white/5 rounded-xl hover:border-blue-500/30 transition-all"
+                                       >
+                                          <div className="flex items-start justify-between mb-2">
+                                             <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                   <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-md border ${statusColor}`}>
+                                                      {statusText}
+                                                   </span>
+                                                   <span className="text-[9px] text-slate-500 font-bold">
+                                                      #{obj.id_objetivo}
+                                                   </span>
+                                                </div>
+                                                <p className="text-sm font-bold text-white">
+                                                   Crear {obj.cantidad_objetivo} perfiles en {obj.plazo_dias} días
+                                                </p>
+                                             </div>
+                                          </div>
+
+                                          {/* Barra de progreso */}
+                                          <div className="mb-2">
+                                             <div className="w-full bg-gray-800 rounded-full h-2">
+                                                <div
+                                                   className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                                                   style={{ width: `${obj.porcentaje_completado}%` }}
+                                                />
+                                             </div>
+                                          </div>
+
+                                          <div className="flex items-center justify-between text-[10px]">
+                                             <span className="text-slate-400 font-bold">
+                                                Progreso: {obj.cantidad_completada}/{obj.cantidad_objetivo} ({obj.porcentaje_completado.toFixed(0)}%)
+                                             </span>
+                                             <span className={diasRestantes < 7 ? 'text-red-400 font-bold' : 'text-slate-500 font-bold'}>
+                                                {diasRestantes > 0 ? `${diasRestantes}d restantes` : diasRestantes === 0 ? 'Vence hoy' : 'Vencido'}
+                                             </span>
+                                          </div>
+
+                                          {obj.perfiles_restantes > 0 && (
+                                             <div className="mt-2 pt-2 border-t border-white/5">
+                                                <p className="text-[9px] text-amber-400 font-bold">
+                                                   ⚡ Faltan {obj.perfiles_restantes} perfiles por crear
+                                                </p>
+                                             </div>
+                                          )}
+                                       </div>
+                                    );
+                                 })
                               )}
                            </div>
-                        </div>
-
-                        {(selectedAgencyForDetails as any).fecha_registro && (
-                           <div className="p-4 bg-[#0a0a0a] border border-white/5 rounded-xl">
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Fecha Registro</p>
-                              <p className="text-xs font-bold text-white">{new Date((selectedAgencyForDetails as any).fecha_registro).toLocaleString('es-ES')}</p>
-                           </div>
-                        )}
-                     </div>
-
-                     {/* NUEVA SECCIÓN: Objetivos de Creación de Perfiles */}
-                     <div className="mt-6 p-5 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-2xl">
-                        <div className="flex items-center justify-between mb-4">
-                           <div className="flex items-center gap-2">
-                              <div className="p-2 bg-blue-500/20 rounded-xl">
-                                 <Calendar size={18} className="text-blue-400" />
-                              </div>
-                              <div>
-                                 <h3 className="text-sm font-black text-white uppercase tracking-wider">Objetivos de Perfiles</h3>
-                                 <p className="text-[9px] text-slate-400 font-bold">Planificación de creación</p>
-                              </div>
-                           </div>
-                           <button
-                              onClick={() => setShowNuevoObjetivoDrawer(!showNuevoObjetivoDrawer)}
-                              className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
-                           >
-                              <Plus size={14} />
-                              Nuevo objetivo
-                           </button>
-                        </div>
-
-                        {/* Formulario para nuevo objetivo (colapsable) */}
-                        {showNuevoObjetivoDrawer && (
-                           <div className="mb-4 p-4 bg-black/30 border border-blue-500/20 rounded-xl space-y-3 animate-in slide-in-from-top-2 duration-200">
-                              <div className="grid grid-cols-2 gap-3">
-                                 <div>
-                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                                       Cantidad de Perfiles
-                                    </label>
-                                    <input
-                                       type="number"
-                                       min="1"
-                                       max="1000"
-                                       value={nuevoObjetivoDrawerData.cantidad_objetivo}
-                                       onChange={(e) => {
-                                          const value = parseInt(e.target.value) || 1;
-                                          setNuevoObjetivoDrawerData(prev => ({ 
-                                             ...prev, 
-                                             cantidad_objetivo: Math.min(Math.max(value, 1), 1000)
-                                          }));
-                                       }}
-                                       className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
-                                    />
-                                    <p className="text-[8px] text-slate-500 mt-1">Máximo 1000</p>
-                                 </div>
-                                 <div>
-                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                                       Plazo (días)
-                                    </label>
-                                    <input
-                                       type="number"
-                                       min="1"
-                                       max="365"
-                                       value={nuevoObjetivoDrawerData.plazo_dias}
-                                       onChange={(e) => {
-                                          const value = parseInt(e.target.value) || 1;
-                                          setNuevoObjetivoDrawerData(prev => ({ 
-                                             ...prev, 
-                                             plazo_dias: Math.min(Math.max(value, 1), 365)
-                                          }));
-                                       }}
-                                       className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
-                                    />
-                                    <p className="text-[8px] text-slate-500 mt-1">Máximo 365 días</p>
-                                 </div>
-                              </div>
-                              <div>
-                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                                    Estado Inicial de Perfiles
-                                 </label>
-                                 <select
-                                    value={nuevoObjetivoDrawerData.estado_inicial_perfiles}
-                                    onChange={(e) => setNuevoObjetivoDrawerData(prev => ({ 
-                                       ...prev, 
-                                       estado_inicial_perfiles: e.target.value as 'ACTIVO' | 'INACTIVO' 
-                                    }))}
-                                    className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm text-white font-bold focus:border-blue-500 focus:outline-none transition-all"
-                                 >
-                                    <option value="ACTIVO">Activo</option>
-                                    <option value="INACTIVO">Inactivo</option>
-                                 </select>
-                              </div>
-                              <div className="flex gap-2 pt-2">
-                                 <button
-                                    onClick={handleCrearObjetivoDrawer}
-                                    disabled={isSubmitting}
-                                    className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-500/50 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
-                                 >
-                                    {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                                    {isSubmitting ? 'Creando...' : 'Crear Objetivo'}
-                                 </button>
-                                 <button
-                                    onClick={() => setShowNuevoObjetivoDrawer(false)}
-                                    className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 text-xs font-bold rounded-lg transition-all"
-                                 >
-                                    Cancelar
-                                 </button>
-                              </div>
-                           </div>
-                        )}
-
-                        {/* Lista de objetivos existentes */}
-                        <div className="space-y-2">
-                           {loadingHistorial ? (
-                              <div className="text-center py-6">
-                                 <RefreshCw size={20} className="animate-spin text-blue-400 mx-auto mb-2" />
-                                 <p className="text-xs text-slate-400 font-bold">Cargando objetivos...</p>
-                              </div>
-                           ) : historialObjetivos.length === 0 ? (
-                              <div className="text-center py-6">
-                                 <Calendar size={32} className="text-slate-600 mx-auto mb-2" />
-                                 <p className="text-xs text-slate-500 font-bold">No hay objetivos definidos</p>
-                                 <p className="text-[9px] text-slate-600 mt-1">Crea uno usando el botón de arriba</p>
-                              </div>
-                           ) : (
-                              historialObjetivos.map(obj => {
-                                 const fechaLimite = new Date(obj.fecha_limite);
-                                 const hoy = new Date();
-                                 const diasRestantes = Math.ceil((fechaLimite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-                                 
-                                 let statusColor = 'bg-green-500/20 text-green-400 border-green-500/30';
-                                 let statusText = 'En progreso';
-                                 
-                                 if (obj.perfiles_restantes === 0) {
-                                    statusColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-                                    statusText = '✓ Completado';
-                                 } else if (diasRestantes < 0) {
-                                    statusColor = 'bg-red-500/20 text-red-400 border-red-500/30';
-                                    statusText = '⚠ Vencido';
-                                 } else if (diasRestantes < 7) {
-                                    statusColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-                                    statusText = '⏰ Urgente';
-                                 }
-                                 
-                                 return (
-                                    <div 
-                                       key={obj.id_objetivo}
-                                       className="p-3 bg-black/40 border border-white/5 rounded-xl hover:border-blue-500/30 transition-all"
-                                    >
-                                       <div className="flex items-start justify-between mb-2">
-                                          <div className="flex-1">
-                                             <div className="flex items-center gap-2 mb-1">
-                                                <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-md border ${statusColor}`}>
-                                                   {statusText}
-                                                </span>
-                                                <span className="text-[9px] text-slate-500 font-bold">
-                                                   #{obj.id_objetivo}
-                                                </span>
-                                             </div>
-                                             <p className="text-sm font-bold text-white">
-                                                Crear {obj.cantidad_objetivo} perfiles en {obj.plazo_dias} días
-                                             </p>
-                                          </div>
-                                       </div>
-                                       
-                                       {/* Barra de progreso */}
-                                       <div className="mb-2">
-                                          <div className="w-full bg-gray-800 rounded-full h-2">
-                                             <div 
-                                                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300" 
-                                                style={{ width: `${obj.porcentaje_completado}%` }}
-                                             />
-                                          </div>
-                                       </div>
-                                       
-                                       <div className="flex items-center justify-between text-[10px]">
-                                          <span className="text-slate-400 font-bold">
-                                             Progreso: {obj.cantidad_completada}/{obj.cantidad_objetivo} ({obj.porcentaje_completado.toFixed(0)}%)
-                                          </span>
-                                          <span className={diasRestantes < 7 ? 'text-red-400 font-bold' : 'text-slate-500 font-bold'}>
-                                             {diasRestantes > 0 ? `${diasRestantes}d restantes` : diasRestantes === 0 ? 'Vence hoy' : 'Vencido'}
-                                          </span>
-                                       </div>
-                                       
-                                       {obj.perfiles_restantes > 0 && (
-                                          <div className="mt-2 pt-2 border-t border-white/5">
-                                             <p className="text-[9px] text-amber-400 font-bold">
-                                                ⚡ Faltan {obj.perfiles_restantes} perfiles por crear
-                                             </p>
-                                          </div>
-                                       )}
-                                    </div>
-                                 );
-                              })
-                           )}
                         </div>
                      </div>
                   </div>
 
-                  {/* Footer - Acciones */}
-                  <div className="px-5 sm:px-7 py-3 border-t border-white/10 bg-[#0a0a0a] flex gap-2">
-                     <button 
+                  {/* Footer - SIEMPRE visible */}
+                  <div className="modal-footer flex gap-2">
+                     <button
                         onClick={() => setSelectedAgencyForDetails(null)}
-                        className="flex-1 py-2 text-[10px] font-black uppercase rounded-lg bg-white/5 text-white hover:bg-white/10 transition-all"
+                        className="flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg bg-white/5 text-white hover:bg-white/10 transition-all"
                      >
                         Cerrar
                      </button>
-                     <button 
+                     <button
                         onClick={() => {
                            setSelectedAgencyForDetails(null);
                            openEditModal(selectedAgencyForDetails);
                         }}
-                        className="flex-1 py-3 text-[11px] font-black uppercase rounded-xl bg-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                        className="flex-1 py-2.5 text-[10px] font-black uppercase rounded-xl bg-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center gap-2"
                      >
                         <Edit size={14} /> Editar Agencia
                      </button>

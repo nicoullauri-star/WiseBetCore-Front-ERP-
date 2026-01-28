@@ -30,3 +30,8 @@ export type {
     UpdateAgenciaData
 } from './agencias.service';
 
+export { personasService } from './personas.service';
+export type { Persona, CreatePersonaData, UpdatePersonaData } from './personas.service';
+
+export { perfilesService } from './perfiles.service';
+export type { PerfilOperativo, CreatePerfilData, UpdatePerfilData } from './perfiles.service';
