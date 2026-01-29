@@ -14,11 +14,10 @@ dist
 build
 .cache
 
-# Archivos de entorno
+# Archivos de entorno (solo locales, no producción)
 .env
 .env.local
 .env.*.local
-.env.production
 
 # Logs
 logs
@@ -66,9 +65,9 @@ tmp
 temp
 *.tmp
 
-# Archivos de configuración local
+# Archivos de configuración local (pero NO los de build)
 .editorconfig
 .prettierrc
 .eslintrc*
-tsconfig*.json
-vite.config.ts
+
+# NOTA: NO ignoramos tsconfig*.json ni vite.config.ts porque son necesarios para el build
