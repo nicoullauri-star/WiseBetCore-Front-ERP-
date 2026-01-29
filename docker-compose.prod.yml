@@ -1,0 +1,132 @@
+version: '3.8'
+
+# ========================================
+# Configuración de Docker Compose para Producción
+# Frontend Angular + Backend Django
+# Uso: docker compose -f docker-compose.prod.yml up -d
+# ========================================
+
+services:
+  # ========================================
+  # Servicio: Backend Django
+  # ========================================
+  backend:
+    build:
+      context: ../backend_wisebet # Ajusta esta ruta según tu estructura
+      dockerfile: Dockerfile
+    container_name: wisebet_backend_prod
+    restart: always
+    env_file:
+      - ../backend_wisebet/.env # Ajusta esta ruta según tu estructura
+    environment:
+      - DEBUG=False
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/mediafiles
+    expose:
+      - "8000"
+    networks:
+      - wisebet_network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/schema/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================
+  # Servicio: Frontend Angular
+  # ========================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wisebet_frontend_prod
+    restart: always
+    volumes:
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/mediafiles:ro
+    expose:
+      - "80"
+    networks:
+      - wisebet_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================
+  # Servicio: Nginx (Reverse Proxy Principal)
+  # ========================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: wisebet_nginx_main
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.main.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - certbot_www:/var/www/certbot:ro
+    networks:
+      - wisebet_network
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================
+  # Servicio: Certbot para SSL (Opcional)
+  # ========================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: wisebet_certbot
+    volumes:
+      - ./ssl:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    depends_on:
+      - nginx
+
+# ========================================
+# Redes
+# ========================================
+networks:
+  wisebet_network:
+    driver: bridge
+
+# ========================================
+# Volúmenes
+# ========================================
+volumes:
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+  certbot_www:
+    driver: local
