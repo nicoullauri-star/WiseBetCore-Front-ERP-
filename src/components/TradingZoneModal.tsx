@@ -413,68 +413,68 @@ export const TradingZoneModal: React.FC<TradingZoneModalProps> = ({ pick: initia
             <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-200 selection:bg-[#00ff88]/30">
                 <div className="w-full max-w-[1700px] h-[95vh] bg-[#0c0c0c] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col relative">
 
-                    {/* --- HUD HEADER v22.0 (Balanced Hub) --- */}
-                    <header className="h-[100px] shrink-0 bg-[#050505] border-b border-white/[0.03] grid grid-cols-3 items-center px-10 relative z-50 shadow-2xl">
+                    {/* --- HUD HEADER v24.0 (Premium Command Center) --- */}
+                    <header className="shrink-0 h-[88px] bg-[#050505] border-b border-white/[0.06] flex items-center justify-between px-8 relative z-50">
 
-                        {/* LEFT: Identity */}
-                        <div className="flex justify-start">
-                            <div className="flex items-center gap-6 bg-white/[0.04] border border-white/10 px-8 py-4 rounded-[2rem] shadow-2xl backdrop-blur-md ring-1 ring-white/5 animate-in slide-in-from-left duration-700 max-w-[320px]">
-                                <div className="size-14 rounded-2xl bg-[#00ff88]/10 flex items-center justify-center text-[#00ff88] border border-[#00ff88]/20 shadow-[0_0_30px_rgba(0,255,136,0.2)]">
-                                    <Zap size={28} fill="currentColor" className="animate-pulse" />
-                                </div>
-                                <div className="min-w-0">
-                                    <h1 className="text-xl font-black italic text-white uppercase tracking-tighter leading-none truncate">{activePick?.event}</h1>
-                                    <p className="text-[10px] font-bold text-[#666] uppercase tracking-[0.4em] mt-1.5 flex items-center gap-2">
-                                        <div className="size-1.5 rounded-full bg-[#00ff88]" />
-                                        {activePick?.sport} • {activePick?.market}
-                                    </p>
+                        {/* LEFT: Event Identity */}
+                        <div className="flex items-center gap-6 w-[350px]">
+                            <div className="size-12 rounded-2xl bg-[#00ff88]/5 flex items-center justify-center text-[#00ff88] border border-[#00ff88]/20 shadow-[0_0_20px_rgba(0,255,136,0.15)] shrink-0">
+                                <Zap size={24} fill="currentColor" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-lg font-black italic text-white uppercase tracking-tight truncate leading-none mb-1.5 opacity-90">{activePick?.event}</h1>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[10px] font-bold text-[#00ff88] uppercase tracking-[0.2em] bg-[#00ff88]/10 px-2 py-0.5 rounded flex items-center gap-1.5">
+                                        <div className="size-1 rounded-full bg-[#00ff88]" />
+                                        {activePick?.sport}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest border-l border-white/10 pl-3">
+                                        {activePick?.market}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* CENTER: High-Res Stats */}
-                        <div className="flex items-center gap-12 justify-center">
-                            <div className="text-center group/stat">
-                                <p className="text-[10px] font-black text-[#444] uppercase mb-1.5 tracking-[0.3em] group-hover:text-[#00ff88] transition-colors">Cuota Fair</p>
-                                <p className="text-5xl font-black italic text-[#00ff88] tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(0,255,136,0.3)] group-hover:scale-110 transition-transform duration-500">{activePick?.fairOdd}</p>
+                        {/* CENTER: Market Intelligence (Unified Pill) */}
+                        <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-[#0a0a0a] border border-white/10 rounded-[1.2rem] p-1.5 shadow-xl">
+                            <div className="px-6 py-1.5 text-center border-r border-white/5 relative group/stat cursor-default">
+                                <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.25em] mb-0.5 group-hover:text-[#00ff88] transition-colors">Fair</p>
+                                <p className="text-3xl font-black italic text-white tracking-tighter tabular-nums group-hover:text-[#00ff88] transition-colors">{activePick?.fairOdd}</p>
                             </div>
-                            <div className="h-14 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
-                            <div className="text-center group/stat">
-                                <p className="text-[10px] font-black text-[#444] uppercase mb-1.5 tracking-[0.3em] group-hover:text-red-500 transition-colors">Cuota Min</p>
-                                <p className="text-5xl font-black italic text-red-500 tracking-tighter tabular-nums group-hover:scale-110 transition-transform duration-500">{activePick?.minOdd}</p>
+                            <div className="px-6 py-1.5 text-center border-r border-white/5 relative group/stat cursor-default">
+                                <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.25em] mb-0.5 group-hover:text-red-500 transition-colors">Min</p>
+                                <p className="text-3xl font-black italic text-[#888] tracking-tighter tabular-nums group-hover:text-red-500 transition-colors">{activePick?.minOdd}</p>
                             </div>
-                            <div className="h-14 w-[1px] bg-gradient-to-b from-transparent via-white/20 to-transparent" />
-                            <div className="text-center group/stat">
-                                <p className="text-[10px] font-black text-[#444] uppercase mb-1.5 tracking-[0.3em] group-hover:text-white transition-colors">Stake Total</p>
-                                <p className="text-5xl font-black italic text-white tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(255,255,255,0.1)] group-hover:scale-110 transition-transform duration-500">${activePick?.recommendedStake}</p>
+                            <div className="px-6 py-1.5 text-center relative group/stat cursor-default">
+                                <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.25em] mb-0.5 group-hover:text-white transition-colors">Stake</p>
+                                <p className="text-3xl font-black italic text-[#888] tracking-tighter tabular-nums group-hover:text-white transition-colors">${activePick?.recommendedStake}</p>
                             </div>
                         </div>
 
                         {/* RIGHT: Engine & Tools */}
-                        <div className="flex items-center gap-6 justify-end">
+                        <div className="flex items-center gap-4 w-[350px] justify-end">
+                            {/* Engine Selector */}
                             <div className="relative group/sel">
-                                <button className="flex items-center gap-5 bg-[#0a0a0a] hover:bg-[#111] border border-white/10 px-6 py-3 rounded-2xl transition-all shadow-lg active:scale-95 group">
-                                    <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-[#00ff88] group-hover:bg-[#00ff88]/10 transition-colors">
-                                        <Layers size={18} />
-                                    </div>
+                                <button className="flex items-center gap-3 bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 px-4 py-2.5 rounded-xl transition-all">
+                                    <Layers size={16} className="text-[#00ff88]" />
                                     <div className="text-left">
-                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none">Motor v2.0</p>
-                                        <p className="text-[11px] font-black text-[#00ff88] uppercase mt-1">Sigs: {selectedPicks.length}</p>
+                                        <p className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Motor Core</p>
+                                        <p className="text-[10px] font-bold text-white uppercase">V2.0 <span className="text-[#00ff88]">Alpha</span></p>
                                     </div>
-                                    <ChevronDown size={14} className="text-[#333] ml-2 group-hover:text-[#00ff88] transition-colors" />
+                                    <ChevronDown size={12} className="text-[#444]" />
                                 </button>
-
-                                <div className="absolute top-[calc(100%+12px)] right-0 w-[420px] bg-[#0c0c0c] border border-white/10 rounded-[2.5rem] shadow-[0_30px_70px_rgba(0,0,0,1)] opacity-0 invisible group-hover/sel:opacity-100 group-hover/sel:visible transition-all z-50 p-4 backdrop-blur-3xl animate-in zoom-in-95 origin-top-right">
-                                    <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center mb-4">
-                                        <span className="text-[10px] font-black text-[#555] uppercase tracking-[0.3em]">Inyección Táctica</span>
+                                {/* Engine Dropdown Component (Mock) */}
+                                <div className="absolute top-[calc(100%+8px)] right-0 w-[300px] bg-[#0c0c0c] border border-white/10 rounded-2xl shadow-2xl opacity-0 invisible group-hover/sel:opacity-100 group-hover/sel:visible transition-all z-50 p-2 pointer-events-none group-hover/sel:pointer-events-auto">
+                                    <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/[0.02] rounded-t-xl">
+                                        <span className="text-[9px] font-black text-[#666] uppercase tracking-widest">Protocolo</span>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setMultiSignalEnabled(!multiSignalEnabled); }}
-                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${multiSignalEnabled ? 'bg-[#00ff88] text-black shadow-[0_0_20px_rgba(0,255,136,0.2)]' : 'bg-white/5 text-[#444] border border-white/5'}`}
+                                            className={`h-6 px-3 rounded-lg text-[9px] font-bold uppercase transition-all ${multiSignalEnabled ? 'bg-[#00ff88] text-black' : 'bg-white/5 text-[#666] hover:bg-white/10'}`}
                                         >
-                                            {multiSignalEnabled ? 'Multi-Mode Active' : 'Single Protocol'}
+                                            {multiSignalEnabled ? 'Multi' : 'Single'}
                                         </button>
                                     </div>
-                                    <div className="space-y-1.5 max-h-[450px] overflow-y-auto custom-scrollbar p-1">
+                                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-1 space-y-1 mt-1">
                                         {MOCK_SCENARIOS_V8.map(s => {
                                             const isSelected = selectedPicks.some(p => p.id === s.id);
                                             return (
@@ -482,29 +482,17 @@ export const TradingZoneModal: React.FC<TradingZoneModalProps> = ({ pick: initia
                                                     key={s.id}
                                                     onClick={() => {
                                                         if (multiSignalEnabled) {
-                                                            if (isSelected) {
-                                                                if (selectedPicks.length > 1) setSelectedPicks(prev => prev.filter(p => p.id !== s.id));
-                                                            } else {
-                                                                setSelectedPicks(prev => [...prev, s]);
-                                                            }
+                                                            isSelected ? (selectedPicks.length > 1 && setSelectedPicks(prev => prev.filter(p => p.id !== s.id))) : setSelectedPicks(prev => [...prev, s]);
                                                         } else {
                                                             setSelectedPicks([s]);
                                                             setTotalMonto(s.recommendedStake);
-                                                            pushLog(`Transacción: ${s.event}`);
+                                                            pushLog(`Switched to: ${s.event}`);
                                                         }
                                                     }}
-                                                    className={`w-full p-5 rounded-[1.5rem] text-left transition-all border group/item ${isSelected ? 'bg-[#00ff88]/5 border-[#00ff88]/30 shadow-inner' : 'border-transparent hover:bg-white/5'}`}
+                                                    className={`w-full p-3 rounded-xl text-left transition-all border flex items-center justify-between group/item ${isSelected ? 'bg-[#00ff88]/10 border-[#00ff88]/20' : 'border-transparent hover:bg-white/[0.04]'}`}
                                                 >
-                                                    <div className="flex justify-between items-center">
-                                                        <div className="min-w-0">
-                                                            <p className={`text-[15px] font-black uppercase tracking-tight truncate transition-all ${isSelected ? 'text-[#00ff88] translate-x-1' : 'text-white/80'}`}>{s.event}</p>
-                                                            <p className="text-[9px] font-bold text-[#444] uppercase mt-1 tracking-widest">{s.market}</p>
-                                                        </div>
-                                                        <div className="text-right shrink-0 ml-4">
-                                                            <span className="text-sm font-black text-white italic tabular-nums">{s.fairOdd}</span>
-                                                            <p className="text-[8px] font-black text-[#00ff88] uppercase mt-1">${s.recommendedStake}</p>
-                                                        </div>
-                                                    </div>
+                                                    <span className={`text-[11px] font-bold uppercase truncate transition-colors ${isSelected ? 'text-[#00ff88]' : 'text-[#888] group-hover/item:text-white'}`}>{s.event}</span>
+                                                    {isSelected && <CheckCircle2 size={12} className="text-[#00ff88]" />}
                                                 </button>
                                             );
                                         })}
@@ -512,112 +500,107 @@ export const TradingZoneModal: React.FC<TradingZoneModalProps> = ({ pick: initia
                                 </div>
                             </div>
 
-                            <div className="w-[1px] h-10 bg-white/5" />
+                            <div className="w-px h-8 bg-white/10" />
 
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setShowAuditHistory(!showAuditHistory)}
-                                    className={`size-11 flex items-center justify-center rounded-2xl transition-all border ${showAuditHistory ? 'bg-[#00ff88] text-black border-[#00ff88]' : 'bg-white/5 text-[#444] border-white/5 hover:text-white hover:bg-white/10'}`}
-                                    title="Historial de Auditoría"
-                                >
-                                    <HistoryIcon size={18} />
-                                </button>
-                                <button onClick={saveDraft} className="size-11 flex items-center justify-center rounded-2xl bg-white/5 text-[#444] border border-white/5 hover:text-[#00ff88] hover:bg-[#00ff88]/5 transition-all" title="Guardar Borrador">
-                                    <Save size={18} />
-                                </button>
-                                <button onClick={onClose} className="size-11 flex items-center justify-center rounded-2xl bg-red-500/10 text-red-500 border border-red-500/10 hover:bg-red-500 hover:text-white transition-all" title="Cerrar Terminal">
-                                    <X size={18} />
-                                </button>
-                            </div>
+                            <button onClick={() => setShowAuditHistory(!showAuditHistory)} className={`size-10 flex items-center justify-center rounded-xl border transition-all ${showAuditHistory ? 'bg-[#00ff88] border-[#00ff88] text-black shadow-[0_0_15px_rgba(0,255,136,0.3)]' : 'bg-white/5 border-white/5 text-[#666] hover:text-white hover:bg-white/10'}`}>
+                                <HistoryIcon size={16} />
+                            </button>
+                            <button onClick={saveDraft} className="size-10 flex items-center justify-center rounded-xl bg-white/5 text-[#666] border border-white/5 hover:text-[#00ff88] hover:bg-[#00ff88]/5 transition-all">
+                                <Save size={16} />
+                            </button>
+                            <button onClick={onClose} className="size-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-500 border border-red-500/10 hover:bg-red-500 hover:text-white transition-all shadow-inner">
+                                <X size={16} />
+                            </button>
                         </div>
                     </header>
 
                     <div className="flex-1 flex overflow-hidden bg-[#050505] relative">
-
                         {/* --- LEFT PANEL (Fleet Scanner) --- */}
                         <div className="flex-1 flex flex-col border-r border-white/5 relative z-10 overflow-hidden">
 
-                            {/* Control Bar & Filters */}
-                            <div className="shrink-0 border-b border-white/5 bg-black/40 backdrop-blur-md relative z-20">
-                                <div className="h-[120px] px-10 flex flex-col justify-center gap-4">
-                                    <div className="flex items-center justify-between gap-10">
-                                        <div className="flex items-center gap-6 flex-1">
-                                            <div className="relative group flex-1 max-w-xl">
-                                                <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-[#333] group-focus-within:text-[#00ff88] transition-colors" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Escanear Perfil / Operador..."
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                    className="w-full bg-[#080808] border border-white/10 rounded-[1.5rem] py-4 pl-14 pr-6 text-[12px] font-black text-white placeholder-[#222] outline-none focus:border-[#00ff88]/30 focus:ring-4 focus:ring-[#00ff88]/5 transition-all font-mono"
-                                                />
-                                            </div>
-                                            <div className="flex bg-[#0c0c0c] p-1.5 rounded-[1.5rem] border border-white/10 shadow-inner">
-                                                <button onClick={() => setMode('AUTO')} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase transition-all ${mode === 'AUTO' ? 'bg-[#00ff88] text-black shadow-[0_0_30px_rgba(0,255,136,0.3)] scale-105' : 'text-[#555] hover:text-white'}`}>Auto-Intelligence</button>
-                                                <button onClick={() => setMode('MANUAL')} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase transition-all ${mode === 'MANUAL' ? 'bg-white text-black shadow-[0_0_30px_rgba(255,255,255,0.1)]' : 'text-[#555] hover:text-white'}`}>Dirección Manual</button>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-4">
-                                            {selectedProfileIds.length > 0 && (
-                                                <button
-                                                    onClick={() => setSelectedProfileIds([])}
-                                                    className="px-6 py-3 bg-red-500/10 text-red-500 text-[10px] font-black uppercase rounded-2xl border border-red-500/20 hover:bg-red-500 hover:text-white transition-all animate-in zoom-in-95"
-                                                >
-                                                    Liberar Selección ({selectedProfileIds.length})
-                                                </button>
-                                            )}
-                                            <button onClick={() => setShowSettings(!showSettings)} className={`size-12 flex items-center justify-center rounded-2xl transition-all border ${showSettings ? 'bg-[#00ff88]/10 text-[#00ff88] border-[#00ff88]/20' : 'bg-white/5 text-[#444] border-white/5 hover:text-white hover:bg-white/10'}`}>
-                                                <Settings size={22} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Tactical Filters v23.5 (Summarized Dropdowns) */}
-                                    <div className="flex items-center gap-4 py-1 relative z-[60]">
-                                        <TacticalDropdown
-                                            label="Sport"
-                                            icon={Activity}
-                                            options={Array.from(new Set((internalProfiles as ProfileItemV8[]).map(p => p.sport)))}
-                                            selected={filterSports}
-                                            onToggle={(val) => setFilterSports(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val])}
-                                            onClear={() => setFilterSports([])}
-                                        />
-
-                                        <TacticalDropdown
-                                            label="Stake"
-                                            icon={Target}
-                                            options={['20', '50', '100', '200', '500']}
-                                            selected={filterStakes}
-                                            onToggle={(val) => setFilterStakes(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val])}
-                                            onClear={() => setFilterStakes([])}
-                                            formatValue={(v) => `$${v}`}
-                                        />
-
-                                        <TacticalDropdown
-                                            label="Casa"
-                                            icon={Layers}
-                                            options={Array.from(new Set((internalProfiles as ProfileItemV8[]).map(p => p.bookie))).sort()}
-                                            selected={filterHouses}
-                                            onToggle={(val) => setFilterHouses(prev => prev.includes(val.toUpperCase()) ? prev.filter(x => x !== val.toUpperCase()) : [...prev, val.toUpperCase()])}
-                                            onClear={() => setFilterHouses([])}
-                                        />
-
-                                        <div className="h-8 w-[1px] bg-white/10 mx-2" />
-
-                                        <div className="flex bg-[#0c0c0c] p-1 rounded-xl border border-white/5">
-                                            <button onClick={() => setShowSelectedOnly(false)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${!showSelectedOnly ? 'bg-white/10 text-white' : 'text-[#555] hover:text-white'}`}>Flota</button>
-                                            <button onClick={() => setShowSelectedOnly(true)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${showSelectedOnly ? 'bg-[#00ff88]/20 text-[#00ff88]' : 'text-[#444] hover:text-white'}`}>Fondo</button>
-                                        </div>
-
-                                        <button
-                                            onClick={() => { setFilterSports([]); setFilterStakes([]); setFilterHouses([]); setSearchQuery(''); setShowSelectedOnly(false); pushLog("Reset Radar"); }}
-                                            className="ml-auto flex items-center gap-2 text-[9px] font-black text-red-500/40 hover:text-red-500 uppercase transition-all group/reset"
-                                        >
-                                            <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-500" /> Reset
-                                        </button>
-                                    </div>
+                            {/* Toolbar & Context */}
+                            <div className="shrink-0 h-[80px] border-b border-white/5 bg-black/40 backdrop-blur-md flex items-center px-8 gap-6 z-20">
+                                {/* Search */}
+                                <div className="relative group max-w-[280px] w-full">
+                                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] group-focus-within:text-[#00ff88] transition-colors" />
+                                    <input
+                                        type="text"
+                                        placeholder="Filtrar Operadores..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full bg-[#080808] border border-white/10 rounded-xl py-3 pl-11 pr-4 text-[11px] font-bold text-white placeholder-[#333] outline-none focus:border-[#00ff88]/30 focus:shadow-[0_0_20px_rgba(0,255,136,0.05)] transition-all uppercase tracking-wide"
+                                    />
                                 </div>
+
+                                <div className="w-px h-8 bg-white/5" />
+
+                                {/* Mode Switch */}
+                                <div className="flex bg-[#0c0c0c] p-1 rounded-xl border border-white/10">
+                                    <button onClick={() => setMode('AUTO')} className={`px-6 py-2 rounded-[0.6rem] text-[10px] font-black uppercase transition-all tracking-wide ${mode === 'AUTO' ? 'bg-[#00ff88] text-black shadow-lg' : 'text-[#444] hover:text-[#888]'}`}>Auto</button>
+                                    <button onClick={() => setMode('MANUAL')} className={`px-6 py-2 rounded-[0.6rem] text-[10px] font-black uppercase transition-all tracking-wide ${mode === 'MANUAL' ? 'bg-white text-black shadow-lg' : 'text-[#444] hover:text-[#888]'}`}>Manual</button>
+                                </div>
+
+                                <div className="flex-1" />
+
+                                {/* Quick Actions */}
+                                <div className="flex items-center gap-3">
+                                    {selectedProfileIds.length > 0 && (
+                                        <button
+                                            onClick={() => setSelectedProfileIds([])}
+                                            className="px-4 py-2 bg-red-500/10 text-red-500 text-[9px] font-black uppercase rounded-lg hover:bg-red-500 hover:text-white transition-all border border-red-500/10"
+                                        >
+                                            Limpiar ({selectedProfileIds.length})
+                                        </button>
+                                    )}
+                                    <button onClick={() => setShowSettings(!showSettings)} className={`size-10 flex items-center justify-center rounded-xl transition-all border ${showSettings ? 'bg-white text-black border-white' : 'bg-white/5 text-[#555] border-white/5 hover:text-white hover:bg-white/10'}`}>
+                                        <Settings size={16} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Filter Deck (Secondary Bar - Compact) */}
+                            <div className="py-3 px-8 border-b border-white/5 bg-white/[0.01] flex items-center gap-4 flex-wrap shrink-0 min-h-[50px] relative z-30">
+                                <TacticalDropdown
+                                    label="Sport"
+                                    icon={Activity}
+                                    options={Array.from(new Set((internalProfiles as ProfileItemV8[]).map(p => p.sport)))}
+                                    selected={filterSports}
+                                    onToggle={(val) => setFilterSports(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val])}
+                                    onClear={() => setFilterSports([])}
+                                />
+
+                                <TacticalDropdown
+                                    label="Stake"
+                                    icon={Target}
+                                    options={['20', '50', '100', '200', '500']}
+                                    selected={filterStakes}
+                                    onToggle={(val) => setFilterStakes(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val])}
+                                    onClear={() => setFilterStakes([])}
+                                    formatValue={(v) => `$${v}`}
+                                />
+
+                                <TacticalDropdown
+                                    label="Casa"
+                                    icon={Layers}
+                                    options={Array.from(new Set((internalProfiles as ProfileItemV8[]).map(p => p.bookie))).sort()}
+                                    selected={filterHouses}
+                                    onToggle={(val) => setFilterHouses(prev => prev.includes(val.toUpperCase()) ? prev.filter(x => x !== val.toUpperCase()) : [...prev, val.toUpperCase()])}
+                                    onClear={() => setFilterHouses([])}
+                                />
+
+                                <div className="h-8 w-[1px] bg-white/10 mx-2" />
+
+                                <div className="flex bg-[#0c0c0c] p-1 rounded-xl border border-white/5">
+                                    <button onClick={() => setShowSelectedOnly(false)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${!showSelectedOnly ? 'bg-white/10 text-white' : 'text-[#555] hover:text-white'}`}>Flota</button>
+                                    <button onClick={() => setShowSelectedOnly(true)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${showSelectedOnly ? 'bg-[#00ff88]/20 text-[#00ff88]' : 'text-[#444] hover:text-white'}`}>Fondo</button>
+                                </div>
+
+                                <button
+                                    onClick={() => { setFilterSports([]); setFilterStakes([]); setFilterHouses([]); setSearchQuery(''); setShowSelectedOnly(false); pushLog("Reset Radar"); }}
+                                    className="ml-auto flex items-center gap-2 text-[9px] font-black text-red-500/40 hover:text-red-500 uppercase transition-all group/reset"
+                                >
+                                    <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-500" /> Reset
+                                </button>
                             </div>
 
                             {/* List Area v10.0: Fleet Explorer Style Grid */}
@@ -794,90 +777,77 @@ export const TradingZoneModal: React.FC<TradingZoneModalProps> = ({ pick: initia
                         {/* --- RIGHT PANEL (Control Console v8.5) --- */}
                         {/* --- RIGHT PANEL (Command Console v20.0) --- */}
                         <aside className="w-[480px] bg-[#050505] border-l border-white/[0.03] flex flex-col relative z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] overflow-hidden">
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
 
-                                {/* HUD Summary Header */}
-                                <div className="space-y-6">
+                                {/* HUD Summary Header - Compact v2 */}
+                                <div className="space-y-4">
                                     <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-3">
-                                            <Terminal size={18} className="text-[#00ff88]" />
-                                            <h2 className="text-[12px] font-black text-white uppercase tracking-[0.4em]">Cómputo Táctico</h2>
+                                        <div className="flex items-center gap-2">
+                                            <Terminal size={14} className="text-[#00ff88]" />
+                                            <h2 className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Cómputo Táctico</h2>
                                         </div>
-                                        <div className="px-3 py-1 rounded bg-[#00ff88]/10 text-[8px] font-black text-[#00ff88] uppercase italic border border-[#00ff88]/20">{mode} ACTIVE</div>
+                                        <div className="px-2 py-0.5 rounded bg-[#00ff88]/10 text-[7px] font-black text-[#00ff88] uppercase italic border border-[#00ff88]/20">{mode} ACTIVE</div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div className="relative group bg-gradient-to-br from-[#0c0c0c] to-[#040404] p-10 rounded-[3rem] border border-white/5 shadow-2xl overflow-hidden ring-1 ring-white/5">
-                                            {/* Decorative Grid */}
+                                    <div className="space-y-3">
+                                        {/* Main Input - Compact */}
+                                        <div className="relative group bg-gradient-to-br from-[#0c0c0c] to-[#040404] p-5 rounded-[2rem] border border-white/5 shadow-2xl overflow-hidden ring-1 ring-white/5">
                                             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
-                                            <div className="absolute -top-24 -right-24 size-48 bg-[#00ff88]/10 blur-[80px] rounded-full pointer-events-none" />
 
-                                            <label className="text-[10px] font-black text-[#555] uppercase tracking-[0.5em] block mb-6 text-center">Liquidez Operativa Total</label>
-                                            <div className="relative flex justify-center items-center gap-4">
-                                                <span className="text-4xl font-black text-[#00ff88] italic drop-shadow-[0_0_15px_rgba(0,255,136,0.2)]">$</span>
+                                            <label className="text-[8px] font-black text-[#555] uppercase tracking-[0.5em] block mb-2 text-center">Liquidez Operativa</label>
+                                            <div className="relative flex justify-center items-center gap-2">
+                                                <span className="text-2xl font-black text-[#00ff88] italic">$</span>
                                                 <input
                                                     type="number"
                                                     value={totalMonto}
                                                     onChange={(e) => setTotalMonto(parseFloat(e.target.value) || 0)}
-                                                    className="bg-transparent text-7xl font-black text-white text-center focus:text-[#00ff88] transition-all outline-none tabular-nums w-full selection:bg-[#00ff88]/20"
+                                                    className="bg-transparent text-5xl font-black text-white text-center focus:text-[#00ff88] transition-all outline-none tabular-nums w-full selection:bg-[#00ff88]/20"
                                                 />
                                             </div>
-                                            <div className="mt-6 h-[1px] w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div className="p-6 bg-white/[0.03] border border-white/5 rounded-[2rem] group/sm shadow-lg overflow-hidden relative">
-                                                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover/sm:opacity-40 transition-opacity">
-                                                    <Target size={32} />
-                                                </div>
-                                                <p className="text-[9px] font-black text-[#555] uppercase mb-2 group-hover/sm:text-[#00ff88] transition-colors tracking-widest">Total Asignado</p>
-                                                <p className="text-3xl font-black text-[#00ff88] italic tabular-nums tracking-tighter">${assigned.toFixed(0)}</p>
-                                                <p className="text-[8px] font-bold text-[#333] uppercase mt-2">{profileCount} Módulos Activos</p>
+                                        {/* Stats Grid - Compact */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="p-4 bg-white/[0.03] border border-white/5 rounded-[1.5rem] group/sm relative">
+                                                <p className="text-[8px] font-black text-[#555] uppercase mb-1 group-hover/sm:text-[#00ff88] transition-colors tracking-widest">Asignado</p>
+                                                <p className="text-2xl font-black text-[#00ff88] italic tabular-nums tracking-tighter">${assigned.toFixed(0)}</p>
                                             </div>
-                                            <div className="p-6 bg-white/[0.03] border border-white/5 rounded-[2rem] group/sm shadow-lg overflow-hidden relative">
-                                                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover/sm:opacity-40 transition-opacity">
-                                                    <RefreshCw size={32} />
-                                                </div>
-                                                <p className="text-[9px] font-black text-[#555] uppercase mb-2 group-hover/sm:text-white transition-colors tracking-widest">Balance Flota</p>
-                                                <p className={`text-3xl font-black italic tabular-nums tracking-tighter ${remaining > 1 ? 'text-amber-500' : 'text-white/20'}`}>${remaining.toFixed(0)}</p>
-                                                <p className="text-[8px] font-bold text-[#333] uppercase mt-2">{remaining > 0 ? 'Faltan Recursos' : 'Carga Completa'}</p>
+                                            <div className="p-4 bg-white/[0.03] border border-white/5 rounded-[1.5rem] group/sm relative">
+                                                <p className="text-[8px] font-black text-[#555] uppercase mb-1 group-hover/sm:text-white transition-colors tracking-widest">Balance</p>
+                                                <p className={`text-2xl font-black italic tabular-nums tracking-tighter ${remaining > 1 ? 'text-amber-500' : 'text-white/20'}`}>${remaining.toFixed(0)}</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Signal Intelligence Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between px-2">
-                                        <p className="text-[8px] font-black text-[#333] uppercase tracking-widest">Señales Conectadas</p>
-                                        <div className="size-2 rounded-full bg-[#00ff88] shadow-[0_0_8px_#00ff88]" />
+                                {/* Signal Intelligence - Condensed */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between px-1">
+                                        <p className="text-[7px] font-black text-[#333] uppercase tracking-widest">Señal Activa</p>
+                                        <div className="size-1.5 rounded-full bg-[#00ff88] shadow-[0_0_5px_#00ff88]" />
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="space-y-2">
                                         {selectedPicks.map(p => (
-                                            <div key={p.id} className="group/sig relative p-5 bg-gradient-to-r from-white/[0.04] to-transparent border-l-4 border-[#00ff88] rounded-r-[2rem] border-y border-r border-white/5 transition-all hover:bg-white/[0.08] hover:translate-x-1 duration-300">
+                                            <div key={p.id} className="group/sig relative p-3 bg-gradient-to-r from-white/[0.04] to-transparent border-l-2 border-[#00ff88] rounded-r-xl border-y border-r border-white/5 hover:bg-white/[0.08] transition-all">
                                                 <div className="flex justify-between items-center">
-                                                    <div>
-                                                        <p className="text-[13px] font-black text-white uppercase tracking-tight group-hover/sig:text-[#00ff88] transition-colors">{p.event}</p>
-                                                        <p className="text-[9px] font-bold text-[#555] uppercase mt-1">Cuota {p.fairOdd} • {p.market}</p>
+                                                    <div className="truncate pr-2">
+                                                        <p className="text-[10px] font-black text-white uppercase tracking-tight truncate">{p.event}</p>
+                                                        <p className="text-[8px] font-bold text-[#555] uppercase">{p.market} @ {p.fairOdd}</p>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="text-xl font-black text-[#00ff88] italic tabular-nums tracking-tighter">${p.recommendedStake}</p>
-                                                        <p className="text-[7px] font-black text-[#333] uppercase mt-1">Inyección Sug.</p>
-                                                    </div>
+                                                    <p className="text-sm font-black text-[#00ff88] italic tabular-nums">${p.recommendedStake}</p>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Tactical Breakdown List */}
+                                {/* Tactical Breakdown List - Expanded Space */}
                                 {profileCount > 0 && (
-                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                        <div className="flex justify-between items-center px-2">
-                                            <p className="text-[8px] font-black text-[#333] uppercase tracking-widest">Distribución de Recursos</p>
-                                            <span className="text-[8px] font-black text-[#00ff88] px-2 py-0.5 rounded-full bg-[#00ff88]/5 border border-[#00ff88]/10 italic">Live Feed</span>
+                                    <div className="space-y-3 flex-1 flex flex-col">
+                                        <div className="flex justify-between items-center px-1">
+                                            <p className="text-[7px] font-black text-[#333] uppercase tracking-widest">Distribución ({Object.keys(stakes).filter(k => stakes[k] > 0).length})</p>
                                         </div>
-                                        <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                        <div className="space-y-1.5 overflow-y-auto custom-scrollbar pr-1 flex-1 min-h-[0]">
                                             {Object.entries(stakes).map(([id, amount]) => {
                                                 const amt = amount as number;
                                                 if (amt <= 0) return null;
@@ -888,37 +858,27 @@ export const TradingZoneModal: React.FC<TradingZoneModalProps> = ({ pick: initia
                                                     <div
                                                         key={id}
                                                         onClick={() => focusProfile(p.id, p.ecosystem || 'OTRAS')}
-                                                        className="flex justify-between items-center p-3.5 bg-white/[0.01] border border-white/[0.03] rounded-[1.2rem] hover:border-[#00ff88]/30 hover:bg-[#0c0c0c] transition-all group/sum cursor-pointer"
+                                                        className="flex justify-between items-center p-2.5 bg-white/[0.01] border border-white/[0.03] rounded-xl hover:border-[#00ff88]/30 hover:bg-[#0c0c0c] transition-all group/sum cursor-pointer"
                                                     >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="size-1.5 rounded-full bg-[#00ff88] shadow-[0_0_8px_#00ff88] group-hover/sum:scale-150 transition-transform" />
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="size-1 rounded-full bg-[#00ff88] shadow-[0_0_5px_#00ff88]" />
                                                             <div>
-                                                                <p className="text-[10px] font-black text-white uppercase group-hover/sum:text-[#00ff88] transition-colors tracking-tight">{p.id}</p>
-                                                                <p className="text-[8px] font-bold text-[#333] uppercase leading-none mt-1">{p.bookie} • {p.ecosystem}</p>
+                                                                <p className="text-[9px] font-black text-white uppercase">{p.id}</p>
+                                                                <p className="text-[7px] font-bold text-[#444] uppercase">{p.bookie}</p>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="flex opacity-0 group-hover/sum:opacity-100 transition-all gap-1 -translate-x-2 group-hover/sum:translate-x-0">
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); toggleLock(id); }}
-                                                                    className={`p-1.5 rounded-lg border transition-all ${lockedProfiles.includes(id) ? 'bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'bg-white/5 border-white/5 text-[#333] hover:text-white'}`}
-                                                                >
-                                                                    {lockedProfiles.includes(id) ? <Lock size={12} /> : <Unlock size={12} />}
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleOpenAdsPower(id); }}
-                                                                    className="p-1.5 bg-white/5 border border-white/5 rounded-lg text-[#444] hover:text-[#00ff88] hover:border-[#00ff88]/20 transition-all"
-                                                                    title="Abrir AdsPower"
-                                                                >
-                                                                    <Chrome size={12} />
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex opacity-0 group-hover/sum:opacity-100 transition-all gap-1">
+                                                                <button onClick={(e) => { e.stopPropagation(); toggleLock(id); }} className={`p-1 rounded text-[10px] ${lockedProfiles.includes(id) ? 'text-amber-500' : 'text-[#444] hover:text-white'}`}>
+                                                                    {lockedProfiles.includes(id) ? <Lock size={10} /> : <Unlock size={10} />}
                                                                 </button>
                                                             </div>
                                                             <div className="text-right">
-                                                                <p className="text-xs font-black text-white italic group-hover/sum:scale-110 transition-transform tabular-nums">${amt.toFixed(0)}</p>
+                                                                <p className="text-[10px] font-black text-white italic tabular-nums">${amt.toFixed(0)}</p>
                                                                 {(!manualCuotas[p.bookie] || manualCuotas[p.bookie] <= 0) ? (
-                                                                    <span className="text-[6px] font-black text-red-500 animate-pulse bg-red-500/10 px-1 rounded uppercase mt-0.5 block">Falta Cuota</span>
+                                                                    <span className="text-[5px] font-black text-red-500 uppercase block">NO ODDS</span>
                                                                 ) : (
-                                                                    <p className="text-[6px] font-black text-[#00ff88] uppercase mt-0.5">OK {manualCuotas[p.bookie]}</p>
+                                                                    <p className="text-[5px] font-black text-[#00ff88] uppercase">@{manualCuotas[p.bookie]}</p>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -930,44 +890,40 @@ export const TradingZoneModal: React.FC<TradingZoneModalProps> = ({ pick: initia
                                 )}
                             </div>
 
-                            {/* Sidebar Footer Execution Section */}
-                            <div className="p-8 bg-[#080808] border-t border-white/5 space-y-6 shrink-0">
-                                {/* Execution Checklist */}
-                                <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl space-y-4">
-                                    <h3 className="text-[9px] font-black text-[#555] uppercase tracking-widest flex items-center gap-2">
-                                        <ListChecks size={14} /> Checklist Operativo
-                                    </h3>
-                                    <div className="space-y-3">
-                                        <CheckItem label="Monto Total Asignado" checked={(remaining as number) < 1} />
-                                        <CheckItem label="Cuotas Validadas" checked={Object.keys(manualCuotas).length > 0 && !validation.missingOdds} />
-                                        <CheckItem label="Exposición bajo Límite" checked={exposureByEco.alerts.length === 0} />
+                            {/* Sidebar Footer - Ultra Compact v2 */}
+                            <div className="p-5 bg-[#080808] border-t border-white/5 space-y-4 shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-30">
+                                {/* Compact Checklist & Stats Row */}
+                                <div className="flex justify-between items-end gap-4">
+                                    <div className="space-y-1.5 flex-1">
+                                        <CheckItem label="Monto Total" checked={(remaining as number) < 1} compact />
+                                        <CheckItem label="Cuotas Check" checked={Object.keys(manualCuotas).length > 0 && !validation.missingOdds} compact />
+                                        <CheckItem label="Exp. Risk" checked={exposureByEco.alerts.length === 0} compact />
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                                        <span className="text-[8px] font-black text-[#444] uppercase block mb-1">ROI Est.</span>
-                                        <span className="text-sm font-black text-[#00ff88] italic">{((weightedAvgOdd > 1 ? weightedAvgOdd - 1 : 0) * 100).toFixed(1)}%</span>
-                                    </div>
-                                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                                        <span className="text-[8px] font-black text-[#444] uppercase block mb-1">Media Pond.</span>
-                                        <span className="text-sm font-black text-white italic">{weightedAvgOdd.toFixed(3)}</span>
+                                    <div className="grid grid-cols-2 gap-2 text-center w-[120px]">
+                                        <div className="bg-white/5 rounded-lg p-1.5">
+                                            <p className="text-[6px] font-black text-[#555] uppercase">ROI</p>
+                                            <p className="text-[10px] font-black text-[#00ff88]">{((weightedAvgOdd > 1 ? weightedAvgOdd - 1 : 0) * 100).toFixed(0)}%</p>
+                                        </div>
+                                        <div className="bg-white/5 rounded-lg p-1.5">
+                                            <p className="text-[6px] font-black text-[#555] uppercase">ODD</p>
+                                            <p className="text-[10px] font-black text-white">{weightedAvgOdd.toFixed(2)}</p>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <button
                                     onClick={handleExecuteOperation}
                                     disabled={!validation.isValid}
-                                    className="w-full py-6 bg-[#00ff88] hover:bg-[#00e67a] text-black font-black uppercase text-sm tracking-[0.2em] rounded-[2rem] shadow-[0_0_40px_rgba(0,255,136,0.2)] hover:shadow-[0_0_60px_rgba(0,255,136,0.4)] transition-all disabled:opacity-20 disabled:grayscale flex items-center justify-center gap-3 active:scale-95 group/exec"
+                                    className="w-full py-4 bg-[#00ff88] hover:bg-[#00e67a] text-black font-black uppercase text-xs tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(0,255,136,0.2)] hover:shadow-[0_0_40px_rgba(0,255,136,0.4)] transition-all disabled:opacity-20 disabled:grayscale flex items-center justify-center gap-2 active:scale-95 group/exec"
                                 >
-                                    <Zap size={20} className="group-hover:scale-110 transition-transform" />
-                                    <span>Iniciar Operación</span>
+                                    <Zap size={16} className="group-hover/exec:scale-110 transition-transform" />
+                                    <span>Ejecutar</span>
                                 </button>
                             </div>
                         </aside>
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
             {/* --- MODALS & OVERLAYS --- */}
 
@@ -1094,7 +1050,7 @@ const TacticalDropdown = ({ label, options, selected, onToggle, onClear, icon: I
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                    <div className="absolute top-full left-0 mt-3 w-64 bg-[#0c0c0c] border border-white/10 rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 p-2 animate-in zoom-in-95 origin-top-left backdrop-blur-3xl">
+                    <div className="absolute top-full left-0 mt-3 w-64 bg-[#0c0c0c] border border-white/10 rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-[100] p-2 animate-in zoom-in-95 origin-top-left backdrop-blur-3xl">
                         <div className="px-3 py-2 border-b border-white/5 flex justify-between items-center mb-1">
                             <span className="text-[9px] font-black text-[#444] uppercase tracking-widest">{label}</span>
                             <button onClick={onClear} className="text-[8px] font-black text-red-500/50 hover:text-red-500 uppercase">Limpiar</button>
@@ -1153,11 +1109,11 @@ const MetricBlock = ({ label, value }: any) => (
     </div>
 );
 
-const CheckItem = ({ label, checked }: any) => (
-    <div className="flex items-center justify-between px-1">
-        <span className={`text-[10px] font-bold uppercase transition-colors ${checked ? 'text-[#00ff88]' : 'text-[#666]'}`}>{label}</span>
-        <div className={`size-4 rounded-md border flex items-center justify-center transition-all ${checked ? 'bg-[#00ff88]/20 border-[#00ff88] text-[#00ff88]' : 'border-white/10 text-transparent'}`}>
-            <CheckCircle2 size={10} />
+const CheckItem = ({ label, checked, compact }: any) => (
+    <div className={`flex items-center justify-between ${compact ? 'px-0' : 'px-1'}`}>
+        <span className={`${compact ? 'text-[7px]' : 'text-[10px]'} font-bold uppercase transition-colors ${checked ? 'text-[#00ff88]' : 'text-[#666]'}`}>{label}</span>
+        <div className={`size-3 rounded border flex items-center justify-center transition-all ${checked ? 'bg-[#00ff88]/20 border-[#00ff88] text-[#00ff88]' : 'border-white/10 text-transparent'}`}>
+            <CheckCircle2 size={8} />
         </div>
     </div>
 );

@@ -1,5 +1,5 @@
 ﻿
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     X, LayoutGrid, Activity, CreditCard, Monitor, User, Navigation, Trophy,
     UserRound, Globe, MapPin, Target, Shield, Lock, Copy, StickyNote, Edit3
@@ -145,94 +145,180 @@ export const ProfileDetailsDrawer = ({ profile, onClose, drawerTab, setDrawerTab
     );
 };
 
-export const ManualBetModal = ({ onClose, profiles, onConfirm }: any) => {
-    const [form, setForm] = useState({
-        league: '',
-        startTime: '',
-        event: '',
-        market: '',
-        selection: '',
-        fairOdd: '',
-        minOdd: '',
-        recommendedStake: ''
+// --- NEW IMPORTS FOR MODAL V2 ---
+import { PickFormFields } from '@/components/ManualBet/PickFormFields';
+import { FinancialFields } from '@/components/ManualBet/FinancialFields';
+import { operationalService } from '@/services/operational.service';
+import { ManualPickPayload, CreateSenalPayload } from '@/types/operational.types';
+import { Layers, Plus } from 'lucide-react';
+
+export const ManualBetModal = ({ onClose, onConfirm }: any) => {
+    // FORM STATE
+    const [tipoApuesta, setTipoApuesta] = useState<'SENCILLA' | 'COMBINADA'>('SENCILLA');
+    const [picks, setPicks] = useState<ManualPickPayload[]>([
+        { orden: 1, deporte: 0, competicion: 0, partido: '', fecha_evento: '', mercado: '', seleccion: '', cuota_pick: 0 }
+    ]);
+    const [financials, setFinancials] = useState({
+        cuota_fair: 0,
+        cuota_fair_black: '',
+        cuota_minima: 0,
+        stake_recomendado: 0,
+        distribuidora: 0,
+        notas: '',
+        cuota_total: 0
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleChange = (e: any) => setForm({ ...form, [e.target.name]: e.target.value });
+    // AUTO-CALCULATE TOTAL ODD
+    useEffect(() => {
+        if (tipoApuesta === 'SENCILLA') {
+            setFinancials(prev => ({ ...prev, cuota_total: prev.cuota_fair || 0 }));
+        } else {
+            // For Combo, multiply picks odds
+            const total = picks.reduce((acc, pick) => acc * (Number(pick.cuota_pick) || 1), 1);
+            setFinancials(prev => ({ ...prev, cuota_total: total > 1 ? total : 0 }));
+        }
+    }, [tipoApuesta, financials.cuota_fair, picks]);
 
-    const handleSubmit = () => {
-        onConfirm({
-            ...form,
-            fairOdd: parseFloat(form.fairOdd) || 0,
-            minOdd: parseFloat(form.minOdd) || 0,
-            recommendedStake: parseFloat(form.recommendedStake) || 0
-        });
+    // HANDLERS
+    const handlePickChange = (index: number, field: string, value: any) => {
+        const newPicks = [...picks];
+        newPicks[index] = { ...newPicks[index], [field]: value };
+        setPicks(newPicks);
+    };
+
+    const handleAddPick = () => {
+        setPicks(prev => [
+            ...prev,
+            { orden: prev.length + 1, deporte: 0, competicion: 0, partido: '', fecha_evento: '', mercado: '', seleccion: '', cuota_pick: 0 }
+        ]);
+    };
+
+    const handleRemovePick = (index: number) => {
+        if (picks.length <= 1) return;
+        setPicks(prev => prev.filter((_, i) => i !== index).map((p, i) => ({ ...p, orden: i + 1 })));
+    };
+
+    const handleFinancialChange = (field: string, value: any) => {
+        setFinancials(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmit = async () => {
+        setIsSubmitting(true);
+        try {
+            // Sanitize and convert types for Backend
+            const sanitizedPicks: ManualPickPayload[] = picks.map(p => ({
+                orden: p.orden,
+                deporte: Number(p.deporte),
+                competicion: Number(p.competicion),
+                partido: p.partido,
+                link_partido: p.link_partido || '',
+                fecha_evento: new Date(p.fecha_evento).toISOString(),
+                mercado: p.mercado,
+                seleccion: p.seleccion,
+                cuota_pick: Number(p.cuota_pick)
+            }));
+
+            const payload: CreateSenalPayload = {
+                tipo_apuesta: tipoApuesta,
+                picks: sanitizedPicks,
+                cuota_fair: Number(financials.cuota_fair),
+                cuota_fair_black: financials.cuota_fair_black,
+                cuota_total: Number(financials.cuota_total),
+                cuota_minima: Number(financials.cuota_minima),
+                stake_recomendado: Number(financials.stake_recomendado),
+                distribuidora: financials.distribuidora ? Number(financials.distribuidora) : undefined,
+                notas: financials.notas,
+                origen: 'MANUAL'
+            };
+
+            // Call API
+            const response = await operationalService.createSenal(payload);
+
+            // Notify Parent to refresh queue
+            onConfirm(response);
+            onClose();
+        } catch (error) {
+            console.error("Failed to create signal", error);
+            // 这里 should add a toast error
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const switchTo = (type: 'SENCILLA' | 'COMBINADA') => {
+        setTipoApuesta(type);
+        if (type === 'SENCILLA') {
+            setPicks([picks[0]]); // Keep only first
+        }
     };
 
     return (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl">
-            <div className="relative w-full max-w-2xl bg-[#0c0c0c] border border-white/10 rounded-[3rem] p-10 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-black/95 backdrop-blur-xl">
+            <div className="relative w-full max-w-3xl bg-[#0c0c0c] border border-white/10 rounded-[3rem] p-10 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
                 <header className="flex justify-between items-center mb-6 shrink-0">
-                    <h2 className="text-xl font-black italic uppercase italic tracking-tighter flex items-center gap-3">
-                        <Edit3 size={20} className="text-[#00ff88]" /> Crear Señal Manual
-                    </h2>
-                    <button onClick={onClose} className="p-2 text-[#333] hover:text-white"><X size={24} /></button>
+                    <div>
+                        <h2 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-white">
+                            <Edit3 size={24} className="text-[#00ff88]" /> Crear Señal Manual
+                        </h2>
+                        <div className="flex gap-4 mt-4">
+                            <button
+                                onClick={() => switchTo('SENCILLA')}
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${tipoApuesta === 'SENCILLA' ? 'bg-[#00ff88] text-black border-[#00ff88]' : 'bg-transparent text-[#666] border-white/10 hover:border-white/30'}`}
+                            >
+                                Señal Sencilla
+                            </button>
+                            <button
+                                onClick={() => switchTo('COMBINADA')}
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-2 ${tipoApuesta === 'COMBINADA' ? 'bg-[#00ff88] text-black border-[#00ff88]' : 'bg-transparent text-[#666] border-white/10 hover:border-white/30'}`}
+                            >
+                                <Layers size={14} /> Señal Combinada
+                            </button>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-[#333] hover:text-white bg-white/5 rounded-full"><X size={24} /></button>
                 </header>
 
-                <div className="overflow-y-auto custom-scrollbar pr-2 -mr-2 space-y-6 flex-1">
-                    {/* Event Info */}
+                <div className="overflow-y-auto custom-scrollbar pr-2 -mr-2 space-y-8 flex-1 pb-4">
+                    {/* PICKS SECTION */}
                     <div className="space-y-4">
-                        <h3 className="text-[10px] font-black text-[#444] uppercase tracking-[0.2em] border-b border-white/5 pb-2">Información del Evento</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Torneo / Liga</label>
-                                <input name="league" value={form.league} onChange={handleChange} type="text" placeholder="Ej: Serie A | Italy" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold outline-none focus:border-[#00ff88]/50 text-white" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Hora Inicio</label>
-                                <input name="startTime" value={form.startTime} onChange={handleChange} type="text" placeholder="HH:mm" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold outline-none focus:border-[#00ff88]/50 text-white" />
-                            </div>
-                            <div className="col-span-2 space-y-2">
-                                <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Evento / Partido</label>
-                                <input name="event" value={form.event} onChange={handleChange} type="text" placeholder="Cittadella - Pergolettese" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold outline-none focus:border-[#00ff88]/50 text-white" />
-                            </div>
-                        </div>
+                        {picks.map((pick, idx) => (
+                            <PickFormFields
+                                key={idx}
+                                index={idx}
+                                pick={pick}
+                                onChange={handlePickChange}
+                                onRemove={handleRemovePick}
+                                isSingle={tipoApuesta === 'SENCILLA'}
+                            />
+                        ))}
+
+                        {tipoApuesta === 'COMBINADA' && (
+                            <button
+                                onClick={handleAddPick}
+                                className="w-full py-3 rounded-xl border border-dashed border-[#00ff88]/30 text-[#00ff88] text-[10px] font-black uppercase tracking-widest hover:bg-[#00ff88]/5 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Plus size={14} /> Agregar otro partido
+                            </button>
+                        )}
                     </div>
 
-                    {/* Pick Info */}
-                    <div className="space-y-4">
-                        <h3 className="text-[10px] font-black text-[#444] uppercase tracking-[0.2em] border-b border-white/5 pb-2">Detalle del Pick</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Mercado</label>
-                                <input name="market" value={form.market} onChange={handleChange} type="text" placeholder="Ej: Moneyline / HDP" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold outline-none focus:border-[#00ff88]/50 text-white" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Selección</label>
-                                <input name="selection" value={form.selection} onChange={handleChange} type="text" placeholder="Ej: Team A -0.5" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold outline-none focus:border-[#00ff88]/50 text-white" />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Cuota Fair</label>
-                                    <input name="fairOdd" value={form.fairOdd} onChange={handleChange} type="number" step="0.01" placeholder="2.00" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-mono font-bold text-[#00ff88] outline-none focus:border-[#00ff88]/50" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Cuota Min</label>
-                                    <input name="minOdd" value={form.minOdd} onChange={handleChange} type="number" step="0.01" placeholder="1.90" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-mono font-bold text-white outline-none focus:border-[#00ff88]/50" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-[#333] uppercase tracking-widest">Stake (USD)</label>
-                                <input name="recommendedStake" value={form.recommendedStake} onChange={handleChange} type="number" placeholder="100" className="w-full bg-black/40 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-white outline-none focus:border-[#00ff88]/50" />
-                            </div>
-                        </div>
-                    </div>
+                    {/* FINANCIALS */}
+                    <FinancialFields
+                        form={financials}
+                        onChange={handleFinancialChange}
+                        readOnlyTotalOdd={tipoApuesta === 'COMBINADA'}
+                    />
                 </div>
 
-                <div className="mt-8 flex gap-4 shrink-0">
-                    <button onClick={onClose} className="flex-1 py-4 text-[10px] font-black uppercase text-[#444]">Cancelar</button>
-                    <button onClick={handleSubmit} className="flex-1 py-4 bg-[#00ff88] text-black rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-[#00ff88]/20 hover:scale-[1.02] transition-transform">
-                        Confirmar Señal
+                <div className="mt-8 flex gap-4 shrink-0 pt-4 border-t border-white/5">
+                    <button onClick={onClose} className="flex-1 py-4 text-[10px] font-black uppercase text-[#444] hover:text-white transition-colors">Cancelar Operación</button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="flex-[2] py-4 bg-[#00ff88] text-black rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-[#00ff88]/20 hover:scale-[1.01] transition-transform disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-3"
+                    >
+                        {isSubmitting ? 'Guardando...' : 'Confirmar Señal al Sistema'}
                     </button>
                 </div>
             </div>

@@ -4,7 +4,7 @@ import {
     Zap, Clock, Play, AlertCircle, CheckCircle2, XCircle, Timer,
     Filter, ArrowRight, BarChart3, ListChecks, Wallet, UserRound,
     TrendingUp, LayoutDashboard, History, Flame, Edit3,
-    Terminal as TerminalIcon, Plus, Layers, Send, Award, Target
+    Terminal as TerminalIcon, Plus, Layers, Send, Award, Target, ChevronDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,6 +31,16 @@ export interface PickSource {
     receivedAt: string; // HH:mm time of arrival
     notes?: string;
     bookieOdds: Record<string, { odd: number; liquidity?: number }>;
+    subPicks?: SubPick[];
+}
+
+export interface SubPick {
+    event: string;
+    market: string;
+    selection: string;
+    startTime: string;
+    sport: string;
+    league: string;
 }
 
 export interface KpiStats {
@@ -178,6 +188,8 @@ interface SignalRowProps {
 }
 
 const SignalRow: React.FC<SignalRowProps> = ({ pick, onAction, onClick }) => {
+    const [expanded, setExpanded] = useState(false);
+
     // Determine Source Badge Color & Icon
     const getSourceStyle = (source: string) => {
         const s = source.toUpperCase();
@@ -190,80 +202,127 @@ const SignalRow: React.FC<SignalRowProps> = ({ pick, onAction, onClick }) => {
 
     const sourceStyle = getSourceStyle(pick.source);
     const isLive = pick.startTime === 'LIVE' || pick.isLive;
+    const hasSubPicks = pick.subPicks && pick.subPicks.length > 0;
 
     return (
-        <div onClick={onClick} className="group relative bg-[#0a0a0a]/80 backdrop-blur-sm border border-white/5 hover:border-[#00ff88]/30 rounded-xl p-0 transition-all flex items-stretch justify-between overflow-hidden cursor-pointer hover:bg-white/[0.03] hover:shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+        <div className="flex flex-col group relative bg-[#0a0a0a]/80 backdrop-blur-sm border border-white/5 hover:border-[#00ff88]/30 rounded-xl transition-all overflow-hidden hover:bg-white/[0.03] hover:shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
 
-            {/* 1. TIMING STRIP & LOGISTICS */}
-            <div className="w-[110px] bg-white/[0.02] border-r border-white/5 flex flex-col items-center justify-between p-3 py-4 group-hover:bg-white/[0.04] transition-colors">
-                <div className="text-center">
-                    <p className="text-[8px] font-black text-[#555] uppercase mb-0.5 tracking-wider">Inicio</p>
-                    <p className={`text-base font-black italic tracking-tighter ${isLive ? 'text-red-500 animate-pulse drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]' : 'text-white'}`}>
-                        {pick.startTime}
-                    </p>
-                </div>
+            {/* MAIN ROW HEADER */}
+            <div
+                onClick={(e) => {
+                    // If it has subPicks, toggle expand, otherwise just onClick logic (or both)
+                    if (hasSubPicks) {
+                        e.stopPropagation();
+                        setExpanded(!expanded);
+                    } else {
+                        onClick();
+                    }
+                }}
+                className="flex items-stretch justify-between cursor-pointer"
+            >
 
-                {/* DISTRIBUTOR BADGE */}
-                <div className={`mt-2 px-2 py-1 rounded text-[8px] font-black uppercase border ${sourceStyle.bg} ${sourceStyle.border} ${sourceStyle.color} flex items-center justify-center gap-1.5 w-full`}>
-                    {sourceStyle.icon}
-                    <span className="truncate max-w-[60px]">{pick.source.replace(/^(📢|🤖|👤)\s*/, '')}</span>
-                </div>
-            </div>
-
-            {/* 2. MAIN CONTEXT */}
-            <div className="flex-1 p-4 pl-5 flex flex-col justify-center gap-1">
-                <div className="flex items-center gap-3">
-                    {/* Sport Indicator */}
-                    <span className="text-[9px] font-black text-[#444] bg-white/5 px-2 py-0.5 rounded uppercase flex items-center gap-1.5 border border-white/5">
-                        <div className={`size-1.5 rounded-full ${pick.sport === 'Fútbol' ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : pick.sport === 'Tenis' ? 'bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.5)]' : 'bg-amber-500'}`} />
-                        {pick.sport}
-                    </span>
-                    <p className="text-[10px] font-black text-[#00ff88] uppercase tracking-wide opacity-80">{pick.league}</p>
-
-                    {/* Time Received - IMPROVED READABILITY */}
-                    <span className="text-[9px] font-bold text-[#555] ml-auto flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded border border-white/5">
-                        <History size={10} /> Recibido: {pick.receivedAt}
-                    </span>
-                </div>
-
-                <div className="flex items-baseline gap-4 mt-1">
-                    <h4 className="text-lg font-black italic text-white truncate max-w-lg leading-tight group-hover:text-[#00ff88] transition-colors duration-300">
-                        {pick.event}
-                    </h4>
-                </div>
-
-                <div className="flex items-center gap-2 mt-2">
-                    <p className="text-[10px] font-bold text-[#ccc] uppercase bg-white/[0.05] px-2 py-1 rounded border border-white/5">{pick.market}</p>
-                    {pick.selection && <p className="text-[10px] font-black text-[#00ff88] italic uppercase flex items-center gap-1"><ArrowRight size={10} /> {pick.selection}</p>}
-                </div>
-            </div>
-
-            {/* 3. METRICS & ACTION */}
-            <div className="w-[300px] bg-white/[0.01] border-l border-white/5 flex items-center justify-between p-4 pr-6 gap-6 group-hover:bg-white/[0.03] transition-colors">
-                <div className="flex-1 flex justify-end gap-6">
-                    <div className="text-right space-y-2">
-                        <div className="flex flex-col items-end">
-                            <p className="text-[8px] font-black text-[#555] uppercase mb-0.5">Fair Odd</p>
-                            <p className="text-[#00ff88] font-mono text-xl font-bold leading-none drop-shadow-[0_0_5px_rgba(0,255,136,0.2)]">@{pick.fairOdd.toFixed(2)}</p>
-                        </div>
+                {/* 1. TIMING STRIP & LOGISTICS */}
+                <div className="w-[110px] bg-white/[0.02] border-r border-white/5 flex flex-col items-center justify-between p-3 py-4 group-hover:bg-white/[0.04] transition-colors">
+                    <div className="text-center">
+                        <p className="text-[8px] font-black text-[#555] uppercase mb-0.5 tracking-wider">Inicio</p>
+                        <p className={`text-base font-black italic tracking-tighter ${isLive ? 'text-red-500 animate-pulse drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]' : 'text-white'}`}>
+                            {pick.startTime}
+                        </p>
                     </div>
-                    <div className="text-right space-y-2">
-                        <div className="flex flex-col items-end">
-                            <p className="text-[8px] font-black text-[#555] uppercase mb-0.5">Stake</p>
-                            <p className="text-white font-mono text-xl font-bold leading-none italic drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]">${pick.recommendedStake}</p>
-                        </div>
+
+                    {/* DISTRIBUTOR BADGE */}
+                    <div className={`mt-2 px-2 py-1 rounded text-[8px] font-black uppercase border ${sourceStyle.bg} ${sourceStyle.border} ${sourceStyle.color} flex items-center justify-center gap-1.5 w-full`}>
+                        {sourceStyle.icon}
+                        <span className="truncate max-w-[60px]">{pick.source.replace(/^(📢|🤖|👤)\s*/, '')}</span>
                     </div>
                 </div>
 
-                {/* ENHANCED ACTION BUTTON */}
-                <button
-                    onClick={(e) => { e.stopPropagation(); onAction(); }}
-                    className="size-14 bg-[#00ff88] text-black rounded-xl flex items-center justify-center transition-all shadow-[0_0_20px_rgba(0,255,136,0.3)] hover:shadow-[0_0_30px_rgba(0,255,136,0.6)] hover:scale-105 active:scale-95 group/btn relative overflow-hidden"
-                >
-                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 pointer-events-none mb-10 rotate-12" />
-                    <Zap size={24} className="fill-black stroke-black relative z-10" />
-                </button>
+                {/* 2. MAIN CONTEXT */}
+                <div className="flex-1 p-4 pl-5 flex flex-col justify-center gap-1">
+                    <div className="flex items-center gap-3">
+                        {/* Sport Indicator */}
+                        <span className="text-[9px] font-black text-[#444] bg-white/5 px-2 py-0.5 rounded uppercase flex items-center gap-1.5 border border-white/5">
+                            <div className={`size-1.5 rounded-full ${pick.sport === 'Fútbol' ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : pick.sport === 'Tenis' ? 'bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.5)]' : 'bg-amber-500'}`} />
+                            {pick.sport}
+                        </span>
+                        <p className="text-[10px] font-black text-[#00ff88] uppercase tracking-wide opacity-80">{pick.league}</p>
+
+                        {/* Time Received - IMPROVED READABILITY */}
+                        <span className="text-[9px] font-bold text-[#555] ml-auto flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded border border-white/5">
+                            <History size={10} /> Recibido: {pick.receivedAt}
+                        </span>
+                    </div>
+
+                    <div className="flex items-baseline gap-4 mt-1">
+                        <h4 className="text-lg font-black italic text-white truncate max-w-lg leading-tight group-hover:text-[#00ff88] transition-colors duration-300">
+                            {pick.event}
+                        </h4>
+                        {/* Expandable Indicator */}
+                        {hasSubPicks && (
+                            <span className="text-[10px] text-[#00ff88]/70 flex items-center gap-1 bg-[#00ff88]/5 px-2 py-0.5 rounded-full">
+                                {expanded ? 'Ocultar Detalles' : 'Ver Detalle Combinada'} <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2">
+                        <p className="text-[10px] font-bold text-[#ccc] uppercase bg-white/[0.05] px-2 py-1 rounded border border-white/5">{pick.market}</p>
+                        {pick.selection && <p className="text-[10px] font-black text-[#00ff88] italic uppercase flex items-center gap-1"><ArrowRight size={10} /> {pick.selection}</p>}
+                    </div>
+                </div>
+
+                {/* 3. METRICS & ACTION */}
+                <div className="w-[300px] bg-white/[0.01] border-l border-white/5 flex items-center justify-between p-4 pr-6 gap-6 group-hover:bg-white/[0.03] transition-colors">
+                    <div className="flex-1 flex justify-end gap-6">
+                        <div className="text-right space-y-2">
+                            <div className="flex flex-col items-end">
+                                <p className="text-[8px] font-black text-[#555] uppercase mb-0.5">Fair Odd</p>
+                                <p className="text-[#00ff88] font-mono text-xl font-bold leading-none drop-shadow-[0_0_5px_rgba(0,255,136,0.2)]">@{pick.fairOdd.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                            <div className="flex flex-col items-end">
+                                <p className="text-[8px] font-black text-[#555] uppercase mb-0.5">Stake</p>
+                                <p className="text-white font-mono text-xl font-bold leading-none italic drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]">${pick.recommendedStake}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ENHANCED ACTION BUTTON */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onAction(); }}
+                        className="size-14 bg-[#00ff88] text-black rounded-xl flex items-center justify-center transition-all shadow-[0_0_20px_rgba(0,255,136,0.3)] hover:shadow-[0_0_30px_rgba(0,255,136,0.6)] hover:scale-105 active:scale-95 group/btn relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 pointer-events-none mb-10 rotate-12" />
+                        <Zap size={24} className="fill-black stroke-black relative z-10" />
+                    </button>
+                </div>
             </div>
+
+            {/* EXPANDABLE DETAILS */}
+            {expanded && hasSubPicks && (
+                <div className="bg-black/40 border-t border-white/5 p-4 pl-32 animate-in slide-in-from-top-2">
+                    <p className="text-[10px] font-black text-[#555] uppercase tracking-widest mb-3">Detalle de Selecciones ({pick.subPicks?.length})</p>
+                    <div className="space-y-2">
+                        {pick.subPicks?.map((sub, idx) => (
+                            <div key={idx} className="flex items-center gap-4 bg-white/[0.02] p-2 rounded-lg border border-white/5 hover:bg-white/[0.05] transition-colors">
+                                <div className="text-[10px] text-[#555] font-mono w-12">{sub.startTime}</div>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="text-[9px] font-bold text-[#444] uppercase">{sub.sport} / {sub.league}</span>
+                                        <span className="text-[9px] font-bold text-[#888]">{sub.event}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-[#ccc]">{sub.market}</span>
+                                        <ArrowRight size={10} className="text-[#555]" />
+                                        <span className="text-[10px] font-bold text-[#00ff88]">{sub.selection}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

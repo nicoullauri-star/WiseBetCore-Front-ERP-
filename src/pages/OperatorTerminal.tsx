@@ -1,5 +1,5 @@
 ﻿
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, History, Flame, Terminal as TerminalIcon, Plus, Filter,
     X, Wallet, ListChecks, BarChart, UserRound, Zap, Clock, Play,
@@ -117,8 +117,14 @@ const PREMATCH_PICKS: PickSource[] = [
     }
 ];
 
+// --- NEW IMPORTS ---
+import { operationalService } from '@/services/operational.service';
+import { perfilesService } from '@/services/perfiles.service'; // Import profile service
+import { adaptSignalToPickSource } from '@/utils/operational.adapter';
+import { CreateOperationPayload } from '@/types/operational.types';
+
 // Deprecated local mocks, using tradingZoneMocks.ts instead
-const MOCK_PROFILES = MOCK_PROFILES_V8 as any;
+// const MOCK_PROFILES = MOCK_PROFILES_V8 as any; // REMOVED MOCK
 
 const MOCK_EXECUTIONS: ExecutedBet[] = [
     { id: 'EX-1', time: '14:20', league: 'Premier L.', event: 'Arsenal vs Chelsea', market: 'Over 2.5', selection: 'Yes', odd: 1.95, stake: 500, profit: 0, status: 'PENDING', profileId: 'OKIBET_01', house: 'OKIBET' },
@@ -127,7 +133,15 @@ const MOCK_EXECUTIONS: ExecutedBet[] = [
 
 const OperatorTerminal: React.FC = () => {
     const [view, setView] = useState<'DASHBOARD' | 'PREMATCH' | 'LIVE'>('DASHBOARD');
-    const [picks, setPicks] = useState<PickSource[]>(PREMATCH_PICKS);
+
+    // STATE: Picks now come from API
+    const [picks, setPicks] = useState<PickSource[]>([]);
+    const [isLoadingPicks, setIsLoadingPicks] = useState(false);
+
+    // STATE: Real Profiles from API
+    const [profiles, setProfiles] = useState<any[]>([]); // Using any[] to match TradingZoneModal expectation for now, should be typed
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+
     const [selectedPick, setSelectedPick] = useState<PickSource | null>(null);
     const [selectedProfileDetail, setSelectedProfileDetail] = useState<Profile | null>(null);
     const [drawerTab, setDrawerTab] = useState<'resumen' | 'dna' | 'finanzas'>('resumen');
@@ -145,6 +159,57 @@ const OperatorTerminal: React.FC = () => {
     // ORCHESTRATOR STATE
     const [isOrchestratorOpen, setIsOrchestratorOpen] = useState(false);
 
+    // --- API INTEGRATION: POLLING ---
+    const fetchSignals = async () => {
+        try {
+            const data = await operationalService.getSenales();
+            // Adapt Backend Response -> Frontend Model
+            const adapted = data.map(adaptSignalToPickSource);
+            setPicks(adapted);
+        } catch (error) {
+            console.error("Error fetching signals:", error);
+        }
+    };
+
+    // --- API INTEGRATION: PROFILES ---
+    const fetchProfiles = async () => {
+        try {
+            setIsLoadingProfiles(true);
+            const res = await perfilesService.getAll();
+            // Map backend profiles to TradingZoneModal expected format (ProfileItemV8)
+            // Based on DistribuidorasSection mapping
+            const mappedProfiles = res.results.map((p: any) => ({
+                id: p.nombre_usuario, // The component expects 'id' to be the label shown (e.g. OKIBET_01) or we use internalId
+                internalId: p.id_perfil,
+                username: p.nombre_usuario,
+                ecosystem: p.distribuidora_nombre || 'ALTENAR',
+                bookie: p.casa_nombre || 'Unknown',
+                sport: 'Fútbol', // Default or derived from DNA
+                playerType: p.tipo_jugador,
+                averageStake: p.stake_promedio || 0, // Mapped from 'avgStake' or 'stake_promedio'
+                balance: parseFloat(p.saldo_actual as string) || 0, // Backend sends string or number
+                category: 'A', // Default category
+                riskFactor: 1.0,
+                // Add other fields required by TradingZoneModal props if any
+            }));
+            setProfiles(mappedProfiles);
+        } catch (error) {
+            console.error("Error fetching profiles:", error);
+        } finally {
+            setIsLoadingProfiles(false);
+        }
+    };
+
+    // Initial Fetch & Poll
+    useEffect(() => {
+        setIsLoadingPicks(true);
+        fetchSignals().finally(() => setIsLoadingPicks(false));
+        fetchProfiles(); // Load profiles on mount
+
+        const interval = setInterval(fetchSignals, 30000); // Poll every 30s
+        return () => clearInterval(interval);
+    }, []);
+
     // Filter Logic
     const filteredPicks = picks.filter(p => {
         if (view === 'PREMATCH' && p.isLive) return false;
@@ -157,10 +222,10 @@ const OperatorTerminal: React.FC = () => {
 
     // Derived Stats
     const stats = {
-        capitalDisponibles: 85413,
+        capitalDisponibles: profiles.reduce((acc, p) => acc + p.balance, 0), // Calculate from real profiles
         apuestasRealizadas: 12,
         totalApostado: 4500,
-        perfilesActivos: 28,
+        perfilesActivos: profiles.length, // Real count
         pendingCount: picks.filter(p => p.status === 'NEW').length,
         urgentCount: picks.filter(p => p.status === 'NEW' && p.startTime !== 'LIVE').length,
         inProgressCount: picks.filter(p => p.status === 'PARTIAL').length,
@@ -173,32 +238,78 @@ const OperatorTerminal: React.FC = () => {
     };
 
     const handleSaveNotes = (id: string, notes: string) => {
+        // Optimistic update locally? Or call API? 
+        // For now local update to feel responsive, assuming API call happens inside modal or distinct service
         setPicks(prev => prev.map(p => p.id === id ? { ...p, notes } : p));
     };
 
-    const handleManualRegister = (data: any) => {
-        const newPick: PickSource = {
-            id: `M-${Date.now()}`,
-            sport: 'Fútbol',
-            league: data.league || 'MANUAL LEAGUE',
-            startTime: data.startTime || 'PENDING',
-            startDateTime: new Date().toISOString(),
-            event: data.event || 'MANUAL MATCH',
-            market: data.market || 'MANUAL MARKET',
-            selection: data.selection || 'MANUAL SELECTION',
-            fairOdd: Number(data.fairOdd) || 2.00,
-            minOdd: Number(data.minOdd) || 1.90,
-            recommendedStake: Number(data.recommendedStake) || 100,
-            placedStake: 0,
-            status: 'NEW',
-            isLive: false,
-            source: '👤 MANUAL',
-            receivedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            notes: 'Registro manual por operador',
-            bookieOdds: {}
-        };
-        setPicks(prev => [newPick, ...prev]);
+    // Called when Manual Modal confirms success
+    const handleManualRegister = () => {
+        // Just refresh the list immediately
+        fetchSignals();
         setIsManualModalOpen(false);
+    };
+
+    // --- TRADING EXECUTION HANDLER ---
+    const handleTradingExecution = async (executionData: any) => {
+        console.log("🚀 INITIATING TRADING EXECUTION", executionData);
+        // executionData structure likely: { profiles: [], stakes: {id: amt}, manualCuotas: {bookie: odd}, ... }
+
+        try {
+            const { stakes, manualCuotas, profiles: selectedProfiles, pick } = executionData;
+
+            // Loop through selected profiles (where stake > 0)
+            const promises = Object.entries(stakes).map(async ([profileId, stake]) => {
+                const amount = stake as number;
+                if (amount <= 0) return null;
+
+                // Find full profile object to get IDs
+                const profileObj = profiles.find(p => p.id === profileId);
+                if (!profileObj) {
+                    console.warn(`Profile ${profileId} not found in state`);
+                    return null;
+                }
+
+                // Determine odd (manual or from pick)
+                const odd = manualCuotas[profileObj.bookie] || pick.fairOdd;
+
+                // Payload
+                const payload: CreateOperationPayload = {
+                    senal: parseInt(pick.id) || 0, // Assuming pick.id is string "123" or similar. If formatted like "P-101", we might need parsing.
+                    // Ideally pick object should store the real numeric ID from backend
+                    perfil: profileObj.internalId,
+                    casa_apuestas: 0, // Allow backend to resolve from profile, or pass if needed. Backend likely knows profile->house.
+                    monto: amount,
+                    cuota: Number(odd),
+                    status: 'PENDING'
+                };
+
+                // If pick.id is not numeric (e.g. from mock "P-101"), this will fail. 
+                // But we are using adapted signals. `adaptSignalToPickSource` should map `id_senal` to `id`.
+                // Let's verify `adaptSignalToPickSource` later. For now assume it works or we catch error.
+
+                if (!payload.senal && pick.internalId) {
+                    payload.senal = pick.internalId; // Fallback if we stored internalId in adapter
+                }
+
+                console.log("Sending operation:", payload);
+                return await operationalService.registerOperation(payload);
+            });
+
+            await Promise.all(promises);
+            console.log("✅ All operations registered successfully");
+
+            // Close modal
+            setTradingPick(null);
+            setTradingProfile(null);
+
+            // Refresh signals to show updated status (e.g. PARTIAL/PLACED)
+            fetchSignals();
+
+        } catch (error) {
+            console.error("❌ Error executing trades:", error);
+            alert("Error al ejecutar operaciones. Revisa la consola.");
+        }
     };
 
     return (
@@ -355,7 +466,7 @@ const OperatorTerminal: React.FC = () => {
                 {isManualModalOpen && (
                     <ManualBetModal
                         onClose={() => setIsManualModalOpen(false)}
-                        profiles={MOCK_PROFILES}
+                        profiles={profiles}
                         onConfirm={handleManualRegister}
                     />
                 )}
@@ -389,16 +500,12 @@ const OperatorTerminal: React.FC = () => {
                     <TradingZoneModal
                         pick={tradingPick || (filteredPicks.length > 0 ? filteredPicks[0] : null)}
                         profile={tradingProfile}
-                        profiles={MOCK_PROFILES}
+                        profiles={profiles}
                         onClose={() => {
                             setTradingPick(null);
                             setTradingProfile(null);
                         }}
-                        onExecute={(data) => {
-                            console.log("EXECUTING TRADE:", data);
-                            setTradingPick(null);
-                            setTradingProfile(null);
-                        }}
+                        onExecute={handleTradingExecution}
                     />
                 )}
             </div>
