@@ -40,7 +40,7 @@ export function useDistribuidoras(): UseDistribuidorasReturn {
             const response = await distribuidorasService.getAllWithCasas({ page_size: 100 });
 
             // Transformar a formato Ecosistema para compatibilidad, conservando casas completas
-            const ecosistemas: Ecosistema[] = response.results.map(dist => ({
+            const ecosistemas: Ecosistema[] = (response.results || []).map(dist => ({
                 id: dist.id_distribuidora.toString(),
                 name: dist.nombre,
                 houses: dist.casas

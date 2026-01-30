@@ -229,6 +229,45 @@ const OperationalCenter: React.FC = () => {
   const [showAlerts, setShowAlerts] = useState(false);
   const [showExplorer, setShowExplorer] = useState(false);
   const [showPlanner, setShowPlanner] = useState(false);
+  const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
+
+  // --- REFRESH SPECIFIC PROFILE ON DRAWER OPEN ---
+  useEffect(() => {
+    if (!selectedProfileId) return;
+
+    const refreshProfile = async () => {
+      // Find current profile object to get numeric ID
+      const currentProfile = profiles.find(p => p.id === selectedProfileId);
+      const internalId = (currentProfile as any)?.internalId;
+
+      if (!internalId) return;
+
+      try {
+        setIsRefreshingProfile(true);
+        const freshData = await perfilesService.getById(internalId);
+
+        // Update local state with fresh data to keep Modal and Cards in sync
+        setProfiles(prev => prev.map(p => {
+          if (p.id === selectedProfileId) {
+            return {
+              ...p,
+              balance: freshData.saldo_actual !== undefined ? Number(freshData.saldo_actual) : p.balance,
+              avgStake: freshData.stake_promedio || p.avgStake,
+              opsThisWeek: freshData.ops_semanales || p.opsThisWeek,
+              // Update other fields as needed
+            };
+          }
+          return p;
+        }));
+      } catch (error) {
+        console.error("Error refreshing profile details:", error);
+      } finally {
+        setIsRefreshingProfile(false);
+      }
+    };
+
+    refreshProfile();
+  }, [selectedProfileId]);
 
   // --- PLANNING STATE ---
   // Store planning as Map: "profileId_YYYY-MM-DD" -> "A" | "D"
@@ -320,10 +359,8 @@ const OperationalCenter: React.FC = () => {
   };
 
   useEffect(() => {
-    if (showPlanner) {
-      loadPlanning();
-    }
-  }, [showPlanner]);
+    loadPlanning();
+  }, []);
 
   // --- TRANSACTIONS FETCH ---
   const loadTransactions = async () => {
@@ -1034,7 +1071,11 @@ const OperationalCenter: React.FC = () => {
                           if (houseProfiles.length === 0 && search) return null;
 
                           const totalBal = houseProfiles.reduce((acc, p) => acc + p.balance, 0);
-                          const activeBal = houseProfiles.filter(p => p.schedule[todayIdx] === 'A').reduce((acc, p) => acc + p.balance, 0);
+                          const activeBal = houseProfiles.filter(p => {
+                            const todayStr = new Date().toISOString().split('T')[0];
+                            const key = `${p.id}_${todayStr}`;
+                            return (planningMap[key] || 'A') === 'A';
+                          }).reduce((acc, p) => acc + p.balance, 0);
 
                           return (
                             <div key={houseId} className="border border-white/5 rounded-2xl overflow-hidden">
@@ -1082,7 +1123,9 @@ const OperationalCenter: React.FC = () => {
                               {houseIsExpanded && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-[#080808] animate-in zoom-in-95">
                                   {houseProfiles.map(p => {
-                                    const isA = p.schedule[todayIdx] === 'A';
+                                    const todayStr = new Date().toISOString().split('T')[0];
+                                    const key = `${p.id}_${todayStr}`;
+                                    const isA = (planningMap[key] || 'A') === 'A';
                                     const hasAgency = !!p.agencyId;
                                     return (
                                       <div key={p.id} onClick={() => setSelectedProfileId(p.id)} className={`p-4 bg-[#0d0d0d] border rounded-2xl flex items-center justify-between hover:border-[#00ff88] transition-all group cursor-pointer ${isA ? 'border-[#00ff88]/30 shadow-lg shadow-[#00ff88]/5' : 'border-white/5 opacity-60'} ${hasAgency ? 'ring-1 ring-primary/20' : ''}`}>
@@ -1259,24 +1302,24 @@ const OperationalCenter: React.FC = () => {
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm animate-in fade-in" onClick={() => setSelectedProfileId(null)} />
             <div className="relative w-full lg:max-w-2xl bg-[#0d0d0d] border-l border-[#1f1f1f] h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-400">
 
-              <div className="p-4 sm:p-6 lg:p-10 border-b border-[#1f1f1f] flex justify-between items-center bg-[#111] relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-6 sm:p-10 opacity-5 pointer-events-none hidden sm:block"><Monitor size={100} className="text-[#00ff88] lg:w-[150px] lg:h-[150px]" /></div>
-                <div className="flex items-center gap-3 sm:gap-6 lg:gap-8 relative z-10">
-                  <div className="size-12 sm:size-16 lg:size-24 rounded-xl sm:rounded-2xl lg:rounded-[2.5rem] bg-gradient-to-br from-[#00ff88]/20 to-[#00ff88]/5 border-2 border-[#00ff88]/30 flex items-center justify-center font-black text-xl sm:text-3xl lg:text-5xl text-[#00ff88] uppercase shadow-xl lg:shadow-2xl">
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-[#1f1f1f] flex justify-between items-center bg-[#111] relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none hidden sm:block"><Monitor size={80} className="text-[#00ff88]" /></div>
+                <div className="flex items-center gap-3 sm:gap-4 relative z-10">
+                  <div className="size-10 sm:size-12 lg:size-14 rounded-xl sm:rounded-2xl lg:rounded-2xl bg-gradient-to-br from-[#00ff88]/20 to-[#00ff88]/5 border-2 border-[#00ff88]/30 flex items-center justify-center font-black text-lg sm:text-xl lg:text-3xl text-[#00ff88] uppercase shadow-lg">
                     {selectedProfile.id[0]}
                   </div>
                   <div>
-                    <h2 className="text-lg sm:text-2xl lg:text-4xl font-black text-white tracking-tighter leading-none mb-1 sm:mb-2 lg:mb-4">{selectedProfile.id}</h2>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                      <span className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[9px] sm:text-[11px] font-black uppercase tracking-wider sm:tracking-widest bg-[#00ff88]/20 text-[#00ff88] border border-[#00ff88]/20">{selectedProfile.bookie}</span>
+                    <h2 className="text-base sm:text-lg lg:text-2xl font-black text-white tracking-tighter leading-none mb-1">{selectedProfile.id}</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-[#00ff88]/20 text-[#00ff88] border border-[#00ff88]/20">{selectedProfile.bookie}</span>
                       <div className="flex flex-col">
-                        <span className="text-[9px] sm:text-[11px] font-black text-[#00ff88] uppercase tracking-wide sm:tracking-[0.2em]">{selectedProfile.owner}</span>
-                        {selectedAgency && <span className="text-[8px] sm:text-[9px] text-primary/60 font-bold uppercase flex items-center gap-1"><Building2 size={8} className="sm:w-[10px] sm:h-[10px]" /> {selectedAgency.name}</span>}
+                        <span className="text-[9px] sm:text-[10px] font-black text-[#00ff88] uppercase tracking-wide">{selectedProfile.owner}</span>
+                        {selectedAgency && <span className="text-[8px] sm:text-[9px] text-primary/60 font-bold uppercase flex items-center gap-1"><Building2 size={8} /> {selectedAgency.name}</span>}
                       </div>
                     </div>
                   </div>
                 </div>
-                <button onClick={() => setSelectedProfileId(null)} className="p-2 sm:p-3 lg:p-4 hover:bg-white/5 rounded-xl sm:rounded-2xl lg:rounded-3xl text-[#666666] hover:text-white transition-all"><X size={20} className="sm:w-6 sm:h-6 lg:w-8 lg:h-8" /></button>
+                <button onClick={() => setSelectedProfileId(null)} className="p-2 hover:bg-white/5 rounded-xl text-[#666666] hover:text-white transition-all"><X size={20} /></button>
               </div>
 
               <div className="px-3 sm:px-6 lg:px-10 bg-[#121212] border-b border-[#1f1f1f] flex overflow-x-auto no-scrollbar">
@@ -1285,15 +1328,15 @@ const OperationalCenter: React.FC = () => {
                 <DrawerTab active={drawerTab === 'finanzas'} onClick={() => setDrawerTab('finanzas')} label="Finanzas" icon={<Wallet size={14} />} />
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-12 space-y-4 sm:space-y-6 lg:space-y-12 pb-24 sm:pb-32 lg:pb-48 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 pb-20 custom-scrollbar">
                 {drawerTab === 'resumen' && (
-                  <div className="space-y-12 animate-in fade-in">
+                  <div className="space-y-6 animate-in fade-in">
 
                     {selectedAgency && (
-                      <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-[#00ff88]/10 to-transparent border border-[#00ff88]/20 rounded-xl sm:rounded-2xl lg:rounded-[2.5rem] relative overflow-hidden group">
-                        <Briefcase size={40} className="absolute -right-2 -bottom-2 text-[#00ff88] opacity-5 group-hover:scale-110 transition-transform sm:w-[60px] sm:h-[60px] lg:w-[80px] lg:h-[80px]" />
-                        <h3 className="text-[9px] sm:text-[10px] font-black uppercase text-[#00ff88] tracking-[0.2em] sm:tracking-[0.3em] mb-2 sm:mb-4">Información de Agencia</h3>
-                        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:gap-8">
+                      <div className="p-4 bg-gradient-to-br from-[#00ff88]/10 to-transparent border border-[#00ff88]/20 rounded-2xl relative overflow-hidden group">
+                        <Briefcase size={40} className="absolute -right-2 -bottom-2 text-[#00ff88] opacity-5 group-hover:scale-110 transition-transform" />
+                        <h3 className="text-[10px] font-black uppercase text-[#00ff88] tracking-[0.2em] mb-3">Información de Agencia</h3>
+                        <div className="grid grid-cols-2 gap-4">
                           <IdentityItem label="Agencia" val={selectedAgency.name} icon={<Building2 size={12} />} />
                           <IdentityItem label="Rake" val={`${selectedAgency.rake}%`} icon={<TrendingUp size={12} />} />
                           <IdentityItem label="Responsable" val={selectedAgency.owner} icon={<UserRound size={12} />} />
@@ -1302,53 +1345,53 @@ const OperationalCenter: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="space-y-3 sm:space-y-5">
-                      <h3 className="text-[10px] sm:text-[11px] font-black uppercase text-[#666666] tracking-[0.3em] sm:tracking-[0.4em] flex items-center gap-2">
+                    <div className="space-y-3">
+                      <h3 className="text-[10px] font-black uppercase text-[#666666] tracking-[0.3em] flex items-center gap-2">
                         <Monitor size={14} className="text-[#00ff88]" /> Lanzadores AdsPower
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-                        <button onClick={() => openOwnerBrowser(selectedProfile.ownerId)} className="p-3 sm:p-4 lg:p-6 bg-[#121212] border border-[#1f1f1f] rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center sm:flex-col gap-3 sm:gap-4 group hover:border-[#00ff88]/50 transition-all shadow-lg sm:shadow-xl">
-                          <div className="p-2 sm:p-3.5 bg-white/5 rounded-lg sm:rounded-2xl border border-white/5 group-hover:text-[#00ff88] transition-colors"><UserCheck size={20} className="sm:w-7 sm:h-7" /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => openOwnerBrowser(selectedProfile.ownerId)} className="p-3 bg-[#121212] border border-[#1f1f1f] rounded-2xl flex items-center gap-3 group hover:border-[#00ff88]/50 transition-all shadow-lg">
+                          <div className="p-2 bg-white/5 rounded-xl border border-white/5 group-hover:text-[#00ff88] transition-colors"><UserCheck size={18} /></div>
                           <div className="text-left">
-                            <p className="text-[11px] sm:text-sm font-black text-white uppercase leading-none mb-0.5 sm:mb-1.5">Abrir Perfil Dueño</p>
-                            <p className="text-[9px] sm:text-[10px] text-[#666666] font-bold uppercase">{selectedProfile.owner}</p>
+                            <p className="text-xs font-black text-white uppercase leading-none mb-1">Abrir Perfil Dueño</p>
+                            <p className="text-[9px] text-[#666666] font-bold uppercase">{selectedProfile.owner}</p>
                           </div>
                         </button>
-                        <button onClick={() => openDirectPageBrowser(selectedProfile.id, selectedProfile.backofficeUrl)} className="p-3 sm:p-4 lg:p-6 bg-[#00ff88]/10 border border-[#00ff88]/20 rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center sm:flex-col gap-3 sm:gap-4 group hover:bg-[#00ff88]/20 transition-all shadow-lg sm:shadow-xl">
-                          <div className="p-2 sm:p-3.5 bg-[#00ff88] text-black rounded-lg sm:rounded-2xl shadow-xl shadow-[#00ff88]/20"><MousePointer2 size={20} className="sm:w-7 sm:h-7" /></div>
+                        <button onClick={() => openDirectPageBrowser(selectedProfile.id, selectedProfile.backofficeUrl)} className="p-3 bg-[#00ff88]/10 border border-[#00ff88]/20 rounded-2xl flex items-center gap-3 group hover:bg-[#00ff88]/20 transition-all shadow-lg">
+                          <div className="p-2 bg-[#00ff88] text-black rounded-xl shadow-lg shadow-[#00ff88]/20"><MousePointer2 size={18} /></div>
                           <div className="text-left">
-                            <p className="text-[11px] sm:text-sm font-black text-white uppercase leading-none mb-0.5 sm:mb-1.5">Acceso Backoffice</p>
-                            <p className="text-[9px] sm:text-[10px] text-[#00ff88] font-bold uppercase">Control Casa</p>
+                            <p className="text-xs font-black text-white uppercase leading-none mb-1">Acceso Backoffice</p>
+                            <p className="text-[9px] text-[#00ff88] font-bold uppercase">Control Casa</p>
                           </div>
                         </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:gap-6">
-                      <DetailStat label="Saldo Real" val={`$${selectedProfile.balance.toLocaleString()}`} color="emerald" icon={<CreditCard size={18} />} />
-                      <DetailStat label="Stake Prom." val={`$${selectedProfile.avgStake}`} color="primary" icon={<Target size={18} />} />
-                      <DetailStat label="Ops Semanales" val={selectedProfile.opsThisWeek} sub={`Meta: ${selectedProfile.avgOpsPerWeek}`} color="white" icon={<Activity size={18} />} />
+                    <div className="grid grid-cols-3 gap-3">
+                      <DetailStat label="Saldo Real" val={`$${selectedProfile.balance.toLocaleString()}`} color="emerald" icon={<CreditCard size={16} />} />
+                      <DetailStat label="Stake Prom." val={`$${selectedProfile.avgStake}`} color="primary" icon={<Target size={16} />} />
+                      <DetailStat label="Ops Semanales" val={selectedProfile.opsThisWeek} sub={`Meta: ${selectedProfile.avgOpsPerWeek}`} color="white" icon={<Activity size={16} />} />
                     </div>
                   </div>
                 )}
 
                 {drawerTab === 'dna' && (
-                  <div className="space-y-12 animate-in slide-in-from-bottom-2">
-                    <section className="space-y-8">
-                      <h3 className="text-[11px] font-black uppercase text-[#666666] tracking-[0.4em] border-b border-[#1f1f1f] pb-4 flex items-center gap-2"><Trophy size={16} className="text-[#00ff88]" /> Perfil del Jugador</h3>
-                      <div className="grid grid-cols-2 gap-10">
-                        <IdentityItem label="Tipo de Jugador" val={selectedProfile.playerType} icon={<UserRound size={16} />} />
-                        <IdentityItem label="Deporte DNA" val={selectedProfile.sport} icon={<Trophy size={16} />} />
-                        <IdentityItem label="IP Operativa" val={selectedProfile.ip} icon={<Globe size={16} />} />
-                        <IdentityItem label="Ciudad / Sede" val={selectedProfile.city} icon={<MapPin size={16} />} />
-                        <IdentityItem label="Preferencias" val={selectedProfile.preferences} icon={<Settings size={16} />} />
-                        <IdentityItem label="Nivel de Cuenta" val="Maestra / Auditada" icon={<Shield size={16} />} />
+                  <div className="space-y-8 animate-in slide-in-from-bottom-2">
+                    <section className="space-y-4">
+                      <h3 className="text-[10px] font-black uppercase text-[#666666] tracking-[0.3em] border-b border-[#1f1f1f] pb-3 flex items-center gap-2"><Trophy size={14} className="text-[#00ff88]" /> Perfil del Jugador</h3>
+                      <div className="grid grid-cols-2 gap-6">
+                        <IdentityItem label="Tipo de Jugador" val={selectedProfile.playerType} icon={<UserRound size={14} />} />
+                        <IdentityItem label="Deporte DNA" val={selectedProfile.sport} icon={<Trophy size={14} />} />
+                        <IdentityItem label="IP Operativa" val={selectedProfile.ip} icon={<Globe size={14} />} />
+                        <IdentityItem label="Ciudad / Sede" val={selectedProfile.city} icon={<MapPin size={14} />} />
+                        <IdentityItem label="Preferencias" val={selectedProfile.preferences} icon={<Settings size={14} />} />
+                        <IdentityItem label="Nivel de Cuenta" val="Maestra / Auditada" icon={<Shield size={14} />} />
                       </div>
                     </section>
 
-                    <section className="space-y-6">
-                      <h3 className="text-[11px] font-black uppercase text-[#666666] tracking-[0.4em] flex items-center gap-2"><Shield size={16} className="text-[#00ff88]" /> Credenciales Tácticas</h3>
-                      <div className="grid grid-cols-2 gap-5">
+                    <section className="space-y-4">
+                      <h3 className="text-[10px] font-black uppercase text-[#666666] tracking-[0.3em] flex items-center gap-2"><Shield size={14} className="text-[#00ff88]" /> Credenciales Tácticas</h3>
+                      <div className="grid grid-cols-2 gap-4">
                         <CredentialBox label="Usuario Casa" value={selectedProfile.username} />
                         <CredentialBox label="Contraseña" value={selectedProfile.password || '••••••••'} />
                       </div>
@@ -1357,11 +1400,11 @@ const OperationalCenter: React.FC = () => {
                 )}
 
                 {drawerTab === 'finanzas' && (
-                  <div className="space-y-8 animate-in fade-in relative">
-                    <div className="flex flex-col gap-4 mb-4">
+                  <div className="space-y-6 animate-in fade-in relative">
+                    <div className="flex flex-col gap-3 mb-2">
                       <div className="flex justify-between items-center">
-                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Historial Financiero</h3>
-                        <div className="text-[10px] text-text-secondary font-bold uppercase">Últimos {currentTransactions.length} movimientos</div>
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest">Historial Financiero</h3>
+                        <div className="text-[9px] text-text-secondary font-bold uppercase">Últimos {currentTransactions.length} movimientos</div>
                       </div>
 
                       {/* FILTERS */}
@@ -1381,32 +1424,34 @@ const OperationalCenter: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {isLoadingTransactions ? (
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-3">
                           {[1, 2, 3].map(i => (
-                            <div key={i} className="h-20 bg-[#1a1a1a] rounded-[1.5rem] animate-pulse" />
+                            <div key={i} className="h-16 bg-[#1a1a1a] rounded-2xl animate-pulse" />
                           ))}
                         </div>
                       ) : currentTransactions.length === 0 ? (
-                        <div className="p-8 text-center border border-dashed border-[#333] rounded-2xl">
-                          <p className="text-xs text-[#666] font-bold uppercase">No se encontraron transacciones</p>
+                        <div className="p-6 text-center border border-dashed border-[#333] rounded-2xl">
+                          <p className="text-[10px] text-[#666] font-bold uppercase">No se encontraron transacciones</p>
                         </div>
                       ) : (
                         currentTransactions.map((tx) => (
-                          <div key={tx.id_transaccion} onClick={() => setSelectedTx(tx as any)} className="p-5 bg-[#050505] border border-white/5 rounded-[1.5rem] flex justify-between items-center hover:border-[#00ff88] transition-all cursor-pointer group">
-                            <div className="flex items-center gap-4">
-                              <div className={`p-3 rounded-xl ${tx.tipo === 'DEPOSITO' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                                {tx.tipo === 'DEPOSITO' ? <ArrowDownCircle size={22} /> : <ArrowUpCircle size={22} />}
+                          <div key={tx.id_transaccion} onClick={() => setSelectedTx(tx as any)} className="p-4 bg-[#050505] border border-white/5 rounded-2xl flex justify-between items-center hover:border-[#00ff88] transition-all cursor-pointer group">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2.5 rounded-xl ${tx.tipo_transaccion === 'DEPOSITO' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                {tx.tipo_transaccion === 'DEPOSITO' ? <ArrowDownCircle size={18} /> : <ArrowUpCircle size={18} />}
                               </div>
                               <div>
-                                <p className="text-sm font-black text-white uppercase tracking-tight">{tx.tipo_display} • {tx.metodo_display}</p>
-                                <p className="text-[10px] text-[#666666] font-bold uppercase">{new Date(tx.created_at).toLocaleDateString()} {new Date(tx.created_at).toLocaleTimeString().slice(0, 5)}</p>
+                                <p className="text-xs font-black text-white uppercase tracking-tight">
+                                  {tx.tipo_transaccion === 'DEPOSITO' ? 'Depósito' : 'Retiro'} • {tx.metodo_pago}
+                                </p>
+                                <p className="text-[9px] text-[#666666] font-bold uppercase">{new Date(tx.fecha_transaccion).toLocaleDateString()} {new Date(tx.fecha_transaccion).toLocaleTimeString().slice(0, 5)}</p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className={`text-lg font-mono font-black ${tx.tipo === 'DEPOSITO' ? 'text-emerald-500' : 'text-rose-500'}`}>{tx.tipo === 'DEPOSITO' ? '+' : '-'}${tx.monto}</p>
-                              <p className="text-[9px] text-[#666666] font-black uppercase tracking-widest">{tx.estado_display}</p>
+                              <p className={`text-base font-mono font-black ${tx.tipo_transaccion === 'DEPOSITO' ? 'text-emerald-500' : 'text-rose-500'}`}>{tx.tipo_transaccion === 'DEPOSITO' ? '+' : '-'}${Number(tx.monto)}</p>
+                              <p className="text-[8px] text-[#666666] font-black uppercase tracking-widest">{tx.estado}</p>
                             </div>
                           </div>
                         ))
@@ -1414,21 +1459,21 @@ const OperationalCenter: React.FC = () => {
                     </div>
 
                     {selectedTx && (
-                      <div className="absolute top-0 right-[-2rem] w-80 bg-[#121212] border border-[#1f1f1f] rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-right z-50">
-                        <div className="flex justify-between items-center mb-8">
-                          <h4 className="text-xs font-black text-white uppercase tracking-widest">Detalle de Operación</h4>
-                          <button onClick={() => setSelectedTx(null)} className="p-1 hover:bg-white/5 rounded-lg text-[#666666]"><X size={18} /></button>
+                      <div className="absolute top-0 right-[-1rem] w-72 bg-[#121212] border border-[#1f1f1f] rounded-3xl p-6 shadow-2xl animate-in slide-in-from-right z-50">
+                        <div className="flex justify-between items-center mb-6">
+                          <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Detalle de Operación</h4>
+                          <button onClick={() => setSelectedTx(null)} className="p-1 hover:bg-white/5 rounded-lg text-[#666666]"><X size={16} /></button>
                         </div>
-                        <div className="space-y-8">
-                          <div className="bg-[#050505] p-6 rounded-2xl border border-white/5 space-y-6">
+                        <div className="space-y-6">
+                          <div className="bg-[#050505] p-4 rounded-xl border border-white/5 space-y-4">
                             <IdentityItem label="Referencia / Hash" val={selectedTx.referencia || selectedTx.networkId || 'N/A'} />
-                            <IdentityItem label="Método" val={selectedTx.metodo || (selectedTx as any).method} />
-                            <IdentityItem label="Fecha" val={selectedTx.created_at ? new Date(selectedTx.created_at).toLocaleString() : (selectedTx as any).date} />
-                            <IdentityItem label="Estado" val={selectedTx.estado || (selectedTx as any).status} icon={<CheckCircle2 size={14} className="text-emerald-500" />} />
+                            <IdentityItem label="Método" val={selectedTx.metodo_pago || (selectedTx as any).method} />
+                            <IdentityItem label="Fecha" val={selectedTx.fecha_transaccion ? new Date(selectedTx.fecha_transaccion).toLocaleString() : (selectedTx as any).date} />
+                            <IdentityItem label="Estado" val={selectedTx.estado || (selectedTx as any).status} icon={<CheckCircle2 size={12} className="text-emerald-500" />} />
                           </div>
-                          <div className="p-5 bg-primary/10 rounded-2xl border border-primary/20 text-center">
-                            <p className="text-[10px] font-black text-[#00ff88] uppercase mb-1">Monto de Operación</p>
-                            <p className="text-3xl font-black text-white tracking-tighter">${selectedTx.amount || (selectedTx as any).monto}</p>
+                          <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-center">
+                            <p className="text-[9px] font-black text-[#00ff88] uppercase mb-1">Monto de Operación</p>
+                            <p className="text-2xl font-black text-white tracking-tighter">${selectedTx.monto || selectedTx.amount}</p>
                           </div>
                         </div>
                       </div>
@@ -1436,20 +1481,20 @@ const OperationalCenter: React.FC = () => {
                   </div>
                 )}
 
-                <section className="space-y-4 pt-12 border-t border-[#1f1f1f]">
-                  <h3 className="text-[11px] font-black text-[#666666] uppercase tracking-[0.4em] flex items-center gap-2"><StickyNote size={14} /> Bitácora de Mando</h3>
+                <section className="space-y-3 pt-8 border-t border-[#1f1f1f]">
+                  <h3 className="text-[10px] font-black text-[#666666] uppercase tracking-[0.3em] flex items-center gap-2"><StickyNote size={12} /> Bitácora de Mando</h3>
 
                   {/* Notes List */}
-                  <div className="space-y-3 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                  <div className="space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-2">
                     {isLoadingNotes ? (
-                      <div className="text-center py-4 text-xs text-[#666] animate-pulse">Cargando notas...</div>
+                      <div className="text-center py-3 text-xs text-[#666] animate-pulse">Cargando notas...</div>
                     ) : bitacoraNotes.length === 0 ? (
-                      <div className="text-center py-6 text-xs text-[#444] italic">Sin notas registradas.</div>
+                      <div className="text-center py-4 text-xs text-[#444] italic">Sin notas registradas.</div>
                     ) : (
                       bitacoraNotes.map((note) => (
-                        <div key={note.id} className="p-4 bg-[#0a0a0a] rounded-2xl border border-[#1f1f1f]">
-                          <p className="text-xs text-[#ccc] leading-relaxed mb-2 whitespace-pre-wrap">{note.contenido}</p>
-                          <div className="flex justify-between items-center text-[9px] text-[#555] font-bold uppercase tracking-wider">
+                        <div key={note.id} className="p-3 bg-[#0a0a0a] rounded-xl border border-[#1f1f1f]">
+                          <p className="text-[10px] text-[#ccc] leading-relaxed mb-1 whitespace-pre-wrap">{note.contenido}</p>
+                          <div className="flex justify-between items-center text-[8px] text-[#555] font-bold uppercase tracking-wider">
                             <span>{note.autor_nombre || 'Operador'}</span>
                             <span>{new Date(note.created_at).toLocaleDateString()} {new Date(note.created_at).toLocaleTimeString().slice(0, 5)}</span>
                           </div>
@@ -1463,25 +1508,25 @@ const OperationalCenter: React.FC = () => {
                     <textarea
                       value={newNoteContent}
                       onChange={(e) => setNewNoteContent(e.target.value)}
-                      className="w-full bg-[#050505] border border-[#1f1f1f] rounded-3xl p-6 text-xs text-slate-300 outline-none focus:border-[#00ff88] min-h-[100px] resize-none leading-relaxed transition-all pr-12"
+                      className="w-full bg-[#050505] border border-[#1f1f1f] rounded-2xl p-4 text-[10px] text-slate-300 outline-none focus:border-[#00ff88] min-h-[80px] resize-none leading-relaxed transition-all pr-12"
                       placeholder="Nueva observación..."
                     />
                     <button
                       onClick={handleSaveNote}
                       disabled={isSavingNote || !newNoteContent.trim()}
-                      className="absolute bottom-4 right-4 p-2 bg-[#00ff88] text-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-lg shadow-[#00ff88]/20"
+                      className="absolute bottom-3 right-3 p-1.5 bg-[#00ff88] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-lg shadow-[#00ff88]/20"
                     >
-                      {isSavingNote ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      {isSavingNote ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                     </button>
                   </div>
                 </section>
               </div>
 
-              <div className="p-3 sm:p-6 lg:p-10 border-t border-[#1f1f1f] bg-[#111]/95 flex gap-2 sm:gap-4 sticky bottom-0 z-30 backdrop-blur-2xl">
-                <button onClick={() => setSelectedProfileId(null)} className="flex-1 py-2.5 sm:py-4 lg:py-5 text-[10px] sm:text-[11px] font-black uppercase rounded-lg sm:rounded-xl lg:rounded-2xl bg-[#121212] text-white hover:bg-[#1f1f1f] transition-all">Cerrar Terminal</button>
+              <div className="p-3 sm:p-4 lg:p-5 border-t border-[#1f1f1f] bg-[#111]/95 flex gap-2 sm:gap-4 sticky bottom-0 z-30 backdrop-blur-2xl">
+                <button onClick={() => setSelectedProfileId(null)} className="flex-1 py-2 sm:py-3 lg:py-3 text-[10px] sm:text-[11px] font-black uppercase rounded-lg sm:rounded-xl lg:rounded-xl bg-[#121212] text-white hover:bg-[#1f1f1f] transition-all">Cerrar Terminal</button>
                 <button
                   onClick={() => toggleDayStatus(selectedProfile.id, new Date())} // Default to today logic
-                  className={`flex-[2] py-2.5 sm:py-4 lg:py-5 text-[10px] sm:text-[11px] font-black uppercase rounded-lg sm:rounded-xl lg:rounded-2xl transition-all shadow-lg sm:shadow-2xl active:scale-95 ${selectedProfile.schedule[todayIdx] === 'A' ? 'bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500/20' : 'bg-[#00ff88] text-black hover:bg-[#00e67a]'}`}
+                  className={`flex-[2] py-2 sm:py-3 lg:py-3 text-[10px] sm:text-[11px] font-black uppercase rounded-lg sm:rounded-xl lg:rounded-xl transition-all shadow-lg active:scale-95 ${(planningMap[`${selectedProfile.id}_${new Date().toISOString().split('T')[0]}`] || 'A') === 'A' ? 'bg-rose-500/10 border border-rose-500/30 text-rose-500 hover:bg-rose-500/20' : 'bg-[#00ff88] text-black hover:bg-[#00e67a]'}`}
                 >
                   {/* Warning: schedule array is deprecated but we keep the button text logic compatible for now or update it using planningMap if we had access to it here. 
                       Since we don't have easy access to planningMap inside this drawer without prop drilling or context, we might keep the visual feedback optimistic or re-render based on props.
@@ -1515,7 +1560,7 @@ const OperationalCenter: React.FC = () => {
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {deportes.map((deporte: Deporte) => {
+                {(deportes || []).map((deporte: Deporte) => {
                   const isSelected = distForm.deportes.includes(deporte.id_deporte);
                   return (
                     <button

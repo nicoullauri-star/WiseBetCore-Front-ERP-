@@ -40,6 +40,11 @@ const FinanceModule: React.FC = () => {
     };
     const [newTx, setNewTx] = useState(initialFormState);
 
+    // --- EDIT STATUS STATE ---
+    const [editingTx, setEditingTx] = useState<Transaccion | null>(null);
+    const [tempStatus, setTempStatus] = useState<TransactionStatus>('PENDIENTE');
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
     const tabs = [
         { id: 'depositos', label: 'Depósitos', icon: 'arrow_downward' },
         { id: 'retiros', label: 'Retiros', icon: 'arrow_upward' },
@@ -74,7 +79,7 @@ const FinanceModule: React.FC = () => {
             const total = res.results.reduce((acc, curr) => acc + Number(curr.monto), 0);
             const confirmed = res.results.filter(t => t.estado === 'COMPLETADO').reduce((acc, curr) => acc + Number(curr.monto), 0);
             const pending = res.results.filter(t => t.estado === 'PENDIENTE').reduce((acc, curr) => acc + Number(curr.monto), 0);
-            const net = res.results.reduce((acc, curr) => curr.tipo === 'DEPOSITO' ? acc + Number(curr.monto) : acc - Number(curr.monto), 0);
+            const net = res.results.reduce((acc, curr) => curr.tipo_transaccion === 'DEPOSITO' ? acc + Number(curr.monto) : acc - Number(curr.monto), 0);
 
             setMonthlyStats({ total, confirmed, pending, net });
         } catch (e) {
@@ -115,7 +120,16 @@ const FinanceModule: React.FC = () => {
 
         try {
             setIsCreating(true);
-            await transaccionesService.create(newTx);
+            const payload: any = {
+                tipo_transaccion: newTx.tipo,
+                metodo_pago: newTx.metodo,
+                fecha_transaccion: new Date().toISOString(),
+                perfil: newTx.perfil,
+                monto: newTx.monto,
+                estado: newTx.estado,
+                referencia: newTx.referencia
+            };
+            await transaccionesService.create(payload);
             setIsModalOpen(false);
             setNewTx(initialFormState);
             // Refresh list
@@ -127,6 +141,31 @@ const FinanceModule: React.FC = () => {
         } finally {
             setIsCreating(false);
         }
+    };
+
+    const handleUpdateStatus = async () => {
+        if (!editingTx) return;
+
+        try {
+            setIsUpdatingStatus(true);
+            await transaccionesService.update(editingTx.id_transaccion, { estado: tempStatus });
+
+            // Close and refresh
+            setEditingTx(null);
+            fetchData();
+
+            // Optional: Success feedback could be added here
+        } catch (e) {
+            console.error("Error updating transaction status", e);
+            alert("Error al actualizar el estado");
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const openEditModal = (tx: Transaccion) => {
+        setEditingTx(tx);
+        setTempStatus(tx.estado);
     };
 
     return (
@@ -281,37 +320,52 @@ const FinanceModule: React.FC = () => {
                                                 <p className="text-[10px] text-text-secondary font-mono">{tx.referencia}</p>
                                             </td>
                                             <td className="p-4">
-                                                <p className="text-xs font-bold text-slate-900 dark:text-white">{tx.usuario_nombre || 'N/A'}</p>
+                                                <p className="text-xs font-bold text-slate-900 dark:text-white">{tx.perfil_usuario || 'N/A'}</p>
                                             </td>
                                             <td className="p-4">
-                                                <p className="text-xs text-slate-700 dark:text-gray-300">{new Date(tx.created_at).toLocaleDateString()}</p>
-                                                <p className="text-[10px] text-text-secondary">{new Date(tx.created_at).toLocaleTimeString().slice(0, 5)}</p>
+                                                <p className="text-xs text-slate-700 dark:text-gray-300">{new Date(tx.fecha_transaccion).toLocaleDateString()}</p>
+                                                <p className="text-[10px] text-text-secondary">{new Date(tx.fecha_transaccion).toLocaleTimeString().slice(0, 5)}</p>
                                             </td>
                                             <td className="p-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${tx.tipo === 'DEPOSITO'
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${tx.tipo_transaccion === 'DEPOSITO'
                                                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                                                     : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                                                     }`}>
-                                                    {tx.tipo === 'DEPOSITO' ? <ArrowDownCircle size={12} /> : <ArrowUpCircle size={12} />}
-                                                    {tx.tipo_display}
+                                                    {tx.tipo_transaccion === 'DEPOSITO' ? <ArrowDownCircle size={12} /> : <ArrowUpCircle size={12} />}
+                                                    {tx.tipo_transaccion === 'DEPOSITO' ? 'Depósito' : 'Retiro'}
                                                 </span>
                                             </td>
                                             <td className="p-4">
-                                                <p className="text-xs font-medium text-slate-700 dark:text-gray-300">{tx.metodo_display}</p>
+                                                <p className="text-xs font-medium text-slate-700 dark:text-gray-300">{tx.metodo_pago}</p>
                                             </td>
                                             <td className="p-4 text-right">
-                                                <p className={`text-sm font-black font-mono ${tx.tipo === 'DEPOSITO' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
+                                                <p className={`text-sm font-black font-mono ${tx.tipo_transaccion === 'DEPOSITO' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
                                                     }`}>
-                                                    {tx.tipo === 'DEPOSITO' ? '+' : '-'}${Number(tx.monto).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    {tx.tipo_transaccion === 'DEPOSITO' ? '+' : '-'}${Number(tx.monto).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </p>
                                             </td>
                                             <td className="p-4 text-center">
-                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase ${tx.estado === 'COMPLETADO' ? 'text-emerald-500 bg-emerald-500/10' :
-                                                    tx.estado === 'PENDIENTE' ? 'text-amber-500 bg-amber-500/10' :
-                                                        'text-rose-500 bg-rose-500/10'
-                                                    }`}>
-                                                    {tx.estado_display}
-                                                </span>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${tx.estado === 'COMPLETADO'
+                                                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                                        : tx.estado === 'RECHAZADO'
+                                                            ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                                            : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                                        }`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${tx.estado === 'COMPLETADO' ? 'bg-emerald-500' : tx.estado === 'RECHAZADO' ? 'bg-rose-500' : 'bg-amber-500'}`}></span>
+                                                        {tx.estado}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openEditModal(tx);
+                                                        }}
+                                                        className="p-1 text-gray-400 hover:text-primary transition-colors rounded hover:bg-primary/10"
+                                                        title="Editar Estado"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -413,6 +467,69 @@ const FinanceModule: React.FC = () => {
                     <div className="pt-4 flex justify-end gap-2">
                         <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
                         <Button onClick={handleCreateTransaction} isLoading={isCreating}>Guardar</Button>
+                    </div>
+                </div>
+            </Modal>
+            {/* STATUS EDIT MODAL */}
+            <Modal
+                isOpen={!!editingTx}
+                onClose={() => setEditingTx(null)}
+                title="Actualizar Estado"
+            >
+                <div className="space-y-6">
+                    <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                        <p className="text-xs text-text-secondary uppercase font-bold mb-1">Transacción ID</p>
+                        <p className="text-sm font-mono text-slate-900 dark:text-white">#{editingTx?.id_transaccion} - {editingTx?.referencia}</p>
+                        <div className="mt-3 grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-[10px] text-text-secondary uppercase font-bold">Monto</p>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white">${editingTx?.monto}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-text-secondary uppercase font-bold">Usuario</p>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white">{editingTx?.perfil_usuario}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-900 dark:text-white uppercase">Nuevo Estado</label>
+                        <div className="grid grid-cols-3 gap-3">
+                            {['PENDIENTE', 'COMPLETADO', 'RECHAZADO'].map((status) => (
+                                <button
+                                    key={status}
+                                    onClick={() => setTempStatus(status as any)}
+                                    className={`py-3 px-2 rounded-xl text-xs font-black uppercase border transition-all ${tempStatus === status
+                                        ? status === 'COMPLETADO'
+                                            ? 'bg-emerald-500 text-black border-emerald-500 shadow-lg shadow-emerald-500/20'
+                                            : status === 'RECHAZADO'
+                                                ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
+                                                : 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/20'
+                                        : 'bg-transparent border-gray-200 dark:border-white/10 text-gray-400 hover:border-primary/50'
+                                        }`}
+                                >
+                                    {status}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <Button variant="outline" onClick={() => setEditingTx(null)} className="flex-1">
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={handleUpdateStatus}
+                            disabled={isUpdatingStatus || tempStatus === editingTx?.estado}
+                            className="flex-1"
+                        >
+                            {isUpdatingStatus ? (
+                                <span className="flex items-center gap-2">
+                                    <Loader2 size={16} className="animate-spin" /> Actualizando...
+                                </span>
+                            ) : 'Guardar Cambios'}
+                        </Button>
                     </div>
                 </div>
             </Modal>

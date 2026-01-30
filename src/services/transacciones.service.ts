@@ -13,17 +13,13 @@ export type TransactionStatus = 'PENDIENTE' | 'COMPLETADO' | 'RECHAZADO';
 export interface Transaccion {
     id_transaccion: number;
     perfil: number;
-    usuario_nombre: string; // Read-only
-    tipo: TransactionType;
-    tipo_display: string; // Read-only
-    metodo: PaymentMethod;
-    metodo_display: string; // Read-only
+    perfil_usuario: string;
+    tipo_transaccion: TransactionType;
+    metodo_pago: PaymentMethod;
     estado: TransactionStatus;
-    estado_display: string; // Read-only
-    monto: number; // Decimal string in backend, number in TS usually fine if handled correctly, or string to be safe
+    monto: string; // Backend sends string "100.00"
     referencia: string;
-    created_at: string;
-    updated_at: string;
+    fecha_transaccion: string;
 }
 
 export interface GetTransaccionesParams {
@@ -41,8 +37,9 @@ export interface GetTransaccionesParams {
 
 export interface CreateTransaccionData {
     perfil: number;
-    tipo: TransactionType;
-    metodo: PaymentMethod;
+    tipo_transaccion: TransactionType;
+    metodo_pago: PaymentMethod;
+    fecha_transaccion: string;
     estado: TransactionStatus;
     monto: number;
     referencia: string;

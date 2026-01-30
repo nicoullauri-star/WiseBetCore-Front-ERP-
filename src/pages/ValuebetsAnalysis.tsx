@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const ValuebetsAnalysis: React.FC = () => {
@@ -53,7 +53,7 @@ const ValuebetsAnalysis: React.FC = () => {
           </div>
         </div>
         <div className="rounded-xl border border-border-dark bg-card-dark p-5">
-          <h3 className="font-bold text-white mb-2">Gap Explicado</h3>
+          <h3 className="font-bold text-white mb-2">Gap Expirarádo</h3>
           <div className="space-y-4 mt-4">
             {[
               { l: "Slippage", v: 65, txt: "-2.1%", col: "danger" },
