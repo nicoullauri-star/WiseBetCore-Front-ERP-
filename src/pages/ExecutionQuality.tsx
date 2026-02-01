@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 
 const ExecutionQuality: React.FC = () => {
@@ -8,7 +8,7 @@ const ExecutionQuality: React.FC = () => {
         <div className="flex justify-between items-center bg-white dark:bg-surface-dark p-4 rounded-xl border border-border-dark shadow-sm">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2 text-xs text-text-secondary">
-               <Link to="/ceo" className="hover:text-white transition-colors">Operaciones</Link> <span>/</span> <span className="text-white">Valuebets</span> <span>/</span> <span className="font-medium text-primary">Calidad (EQS)</span>
+              <Link to="/ceo" className="hover:text-white transition-colors">Operaciones</Link> <span>/</span> <span className="text-white">Valuebets</span> <span>/</span> <span className="font-medium text-primary">Calidad (EQS)</span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Calidad de Ejecución (EQS)</h1>
           </div>

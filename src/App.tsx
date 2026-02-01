@@ -7,6 +7,10 @@ import ValuebetsAnalysis from './pages/ValuebetsAnalysis';
 import ExecutionQuality from './pages/ExecutionQuality';
 import OperationalCenter from './pages/OperationalCenter';
 import OperationalNetwork from './pages/OperationalNetwork';
+import OperatorTerminal from './pages/OperatorTerminal';
+import OrchestratorTerminal from './pages/OrchestratorTerminal';
+import OrchestratorAdmin from './pages/OrchestratorAdmin';
+import GapAnalysis from './pages/GapAnalysis';
 import FinanceModule from './pages/FinanceModule';
 import Layout from './components/Layout';
 
@@ -37,93 +41,42 @@ const App: React.FC = () => {
         <Route path="/" element={<LoginPage />} />
 
         {/* 1. Vista CEO */}
-        <Route path="/ceo" element={
-          <Layout>
-            <GlobalDashboard />
-          </Layout>
-        } />
+        <Route path="/ceo" element={<Layout><GlobalDashboard /></Layout>} />
 
-        {/* 2. Control Global (Ex-Auditoría KPI) */}
-        <Route path="/control-global" element={
-          <Layout>
-            <AuditPanel />
-          </Layout>
-        } />
+        {/* 2. Control Global */}
+        <Route path="/control-global" element={<Layout><AuditPanel /></Layout>} />
 
         {/* 3. Operaciones */}
 
         {/* 3.1 Picks EV+ */}
-        <Route path="/ops/picks/analysis" element={
-          <Layout>
-            <PlaceholderPage
-              title="Picks EV+ | Análisis"
-              subtitle="Módulo de gestión de picks con valor esperado positivo, filtros avanzados y backtesting."
-            />
-          </Layout>
-        } />
-        <Route path="/ops/picks/quality" element={
-          <Layout>
-            <PlaceholderPage
-              title="Picks EV+ | Calidad (EQS)"
-              subtitle="Auditoría de ejecución, slippage y métricas de calidad para la vertical de Picks."
-            />
-          </Layout>
-        } />
+        <Route path="/ops/picks/analysis" element={<Layout><GapAnalysis /></Layout>} />
+        <Route path="/ops/picks/quality" element={<Layout><ExecutionQuality /></Layout>} />
 
         {/* 3.2 Valuebets */}
-        <Route path="/ops/valuebets/analysis" element={
-          <Layout>
-            <ValuebetsAnalysis />
-          </Layout>
-        } />
-        <Route path="/ops/valuebets/quality" element={
-          <Layout>
-            <ExecutionQuality />
-          </Layout>
-        } />
+        <Route path="/ops/valuebets/analysis" element={<Layout><ValuebetsAnalysis /></Layout>} />
+        <Route path="/ops/valuebets/quality" element={<Layout><ExecutionQuality /></Layout>} />
 
         {/* 3.3 SurebettingEC */}
-        <Route path="/ops/surebetting/analysis" element={
-          <Layout>
-            <PlaceholderPage
-              title="SurebettingEC | Análisis"
-              subtitle="Monitor de arbitraje deportivo, gestión de cuentas y escáner de oportunidades."
-            />
-          </Layout>
-        } />
-        <Route path="/ops/surebetting/quality" element={
-          <Layout>
-            <PlaceholderPage
-              title="SurebettingEC | Calidad"
-              subtitle="Métricas operativas, tiempos de cierre y eficiencia de capital en arbitraje."
-            />
-          </Layout>
-        } />
+        <Route path="/ops/surebetting/analysis" element={<Layout><GapAnalysis /></Layout>} />
+        <Route path="/ops/surebetting/quality" element={<Layout><ExecutionQuality /></Layout>} />
 
         {/* 4. Centro Operativo */}
-        <Route path="/centro-operativo" element={
-          <Layout>
-            <OperationalCenter />
-          </Layout>
-        } />
+        <Route path="/centro-operativo" element={<Layout><OperationalCenter /></Layout>} />
 
         {/* 5. Red Operativa */}
-        <Route path="/red-operativa" element={
-          <Layout>
-            <OperationalNetwork />
-          </Layout>
-        } />
+        <Route path="/red-operativa" element={<Layout><OperationalNetwork /></Layout>} />
 
         {/* 6. Finanzas */}
-        <Route path="/finanzas" element={
-          <Layout>
-            <FinanceModule />
-          </Layout>
-        } />
+        <Route path="/finanzas" element={<Layout><FinanceModule /></Layout>} />
 
-        {/* Redirects */}
-        <Route path="/audit" element={<Navigate to="/control-global" replace />} />
+        {/* --- NUEVAS RUTAS v25 (Orchestrator/Operator) --- */}
+        <Route path="/ops/operator" element={<Layout><OperatorTerminal /></Layout>} />
+        <Route path="/ops/orchestrator" element={<Layout><OrchestratorTerminal /></Layout>} />
+        <Route path="/ops/orchestrator/admin" element={<Layout><OrchestratorAdmin /></Layout>} />
+
+        {/* Redirects for backward compatibility */}
         <Route path="/dashboard" element={<Navigate to="/ceo" replace />} />
+        <Route path="/audit" element={<Navigate to="/control-global" replace />} />
         <Route path="*" element={<Navigate to="/ceo" replace />} />
       </Routes>
     </HashRouter>

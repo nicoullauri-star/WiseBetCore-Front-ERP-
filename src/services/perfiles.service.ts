@@ -29,6 +29,7 @@ export interface PerfilOperativo {
     ops_mensuales?: number;
     ops_historicas?: number;
     profit_loss_total?: number;
+    saldo_actual?: number | string;
 }
 
 export interface CreatePerfilData {
@@ -58,6 +59,10 @@ export const perfilesService = {
 
     update: async (id: number, data: UpdatePerfilData) => {
         return await apiClient.patch<PerfilOperativo>(`${API_ENDPOINTS.PERFILES_OPERATIVOS}${id}/`, data);
+    },
+
+    getById: async (id: number) => {
+        return await apiClient.get<PerfilOperativo>(`${API_ENDPOINTS.PERFILES_OPERATIVOS}${id}/`);
     },
 
     remove: async (id: number) => {

@@ -33,7 +33,7 @@ export function useDeportes(): UseDeportesReturn {
         try {
             const response = await deportesService.getAll();
             setState({
-                deportes: response.results,
+                deportes: response.results || [],
                 isLoading: false,
                 error: null,
             });
